@@ -2,6 +2,7 @@
 
 NOMACHINE_VERSION="9.8.3"
 NOMACHINE_BUILD="1"
+NOMACHINE_RELEASE_BASE_URL="https://github.com/ssybh2/Linux_togo/releases/download/nomachine"
 
 nomachine_asset_name() {
   case "$1" in
@@ -16,7 +17,7 @@ nomachine_asset_url() {
   name="$(nomachine_asset_name "$arch")" || return 1
   case "$arch" in
     amd64) printf 'https://download.nomachine.com/download/9.8/Linux/%s\n' "$name" ;;
-    arm64) printf 'https://download.nomachine.com/download/9.8/Arm/%s\n' "$name" ;;
+    arm64) printf '%s/%s\n' "$NOMACHINE_RELEASE_BASE_URL" "$name" ;;
     *) return 1 ;;
   esac
 }
@@ -33,7 +34,7 @@ nomachine_fallback_url() {
 
 nomachine_asset_sha256() {
   case "$1" in
-    # Verified from the user-supplied official NoMachine 9.8.3 ARM64 package.
+    # Verified from the ARM64 package stored in the Linux_togo GitHub Release.
     arm64) printf 'be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad\n' ;;
     # No independently verified SHA-256 is encoded for amd64.
     amd64) printf '\n' ;;
@@ -116,9 +117,11 @@ install_nomachine() {
     return 0
   fi
 
-  local asset
+  local asset source_label
   asset="$(nomachine_asset_name "$arch")" || { log_error "No NoMachine package for $arch"; return 1; }
-  log_install "NoMachine ${NOMACHINE_VERSION} ($arch) from official NoMachine download service"
+  source_label="official NoMachine download service"
+  [[ "$arch" == "arm64" ]] && source_label="Linux_togo GitHub Release"
+  log_install "NoMachine ${NOMACHINE_VERSION} ($arch) from ${source_label}"
   (
     set -Eeuo pipefail
     local_tmp="$(mktemp -d)"
