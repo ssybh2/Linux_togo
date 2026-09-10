@@ -120,48 +120,51 @@ Linux 官方 DEB：
 
 ## NoMachine 9.8.3
 
-Linux To Go 固定目标为 **NoMachine 9.8.3**。如果本机没有 NoMachine，程序会根据 CPU 架构选择对应 DEB，并从 NoMachine 官方下载服务获取安装包。
+Linux To Go 固定目标为 **NoMachine 9.8.3**。现在仓库自己的 **GitHub Releases** 中已经提供了 ARM64 安装包，因此 ARM Linux 用户可以直接从本项目下载这一固定版本。
 
-预期包名：
+### 本仓库 Release 直接下载
 
-```text
-amd64: nomachine_9.8.3_1_amd64.deb
-arm64: nomachine_9.8.3_1_arm64.deb
-```
+| 架构 | 安装包 | 下载 | SHA-256 |
+|---|---|---|---|
+| arm64 | `nomachine_9.8.3_1_arm64.deb` | [从 Linux_togo Releases 下载](https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb) | `be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad` |
 
-开发本工具时提供的 ARM64 NoMachine 包已经实际校验：
+Release 页面：<https://github.com/ssybh2/Linux_togo/releases/tag/nomachine>
+
+当前上传到 Release 的安装包信息为：
 
 ```text
 Package:      nomachine
 Version:      9.8.3-1
 Architecture: arm64
+Size:         77,575,208 bytes
 SHA-256:      be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad
 ```
 
-NoMachine 官方于 2026 年 9 月 4 日发布 9.8.3。官方更新说明：<https://kb.nomachine.com/SU09X00285>
-
-### 为什么 GitHub 仓库里没有直接存 NoMachine DEB
-
-NoMachine 的最终用户许可协议限制未经书面授权的软件再分发。因此，本公开仓库保存的是**自动安装逻辑，而不是把 NoMachine 二进制重新发布一份**。实际安装时由用户设备直接从 NoMachine 官方服务下载。
-
-官方许可信息：<https://www.nomachine.com/licensing>
-
-这样仍然保持了一键安装体验，同时不会把受再分发限制的软件包作为本仓库附件公开提供。
-
-### 使用你自己已有的 NoMachine 安装包
-
-如果本地已经有合法取得的 `.deb`，可以直接指定：
+ARM64 Ubuntu 设备可以直接执行：
 
 ```bash
-LINUX_TO_GO_NOMACHINE_DEB=/绝对路径/nomachine_9.8.3_1_arm64.deb \
+wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
+sudo apt install ./nomachine_9.8.3_1_arm64.deb
+```
+
+也可以直接打开上面的 Release 页面，用浏览器下载安装包。
+
+### 让 Linux To Go 使用 Release 中的安装包
+
+如果希望自动部署时明确使用你已经上传到本仓库 Release 的这个 ARM64 包，可以先下载，再传给 `linux-to-go`：
+
+```bash
+wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
+
+LINUX_TO_GO_NOMACHINE_DEB="$PWD/nomachine_9.8.3_1_arm64.deb" \
   linux-to-go -ros2
 ```
 
-脚本会调用 `dpkg-deb` 读取软件包元数据。如果包的 `Architecture` 与电脑架构不一致，会拒绝安装。
+脚本会调用 `dpkg-deb` 读取包的元数据，并检查 `Architecture` 是否与本机一致；不一致会拒绝安装。
 
-如果直接在仓库目录运行 CLI，也可以把自己的安装包放进 `packages/`。该目录通过 `.gitignore` 排除了 `.deb`，防止不小心提交到公开仓库。
+> 当前仓库 Release 中上传的是 **ARM64** 版本。它不能用于普通 Intel / AMD 的 `amd64` x86-64 电脑。对于 amd64 机器，当前 `linux-to-go` 仍会通过 NoMachine 安装模块选择对应 amd64 包。
 
-详细说明见 [`packages/README.md`](./packages/README.md)。
+NoMachine 官方于 2026 年 9 月 4 日发布 9.8.3。官方更新说明：<https://kb.nomachine.com/SU09X00285>
 
 ---
 
@@ -389,6 +392,6 @@ bash tests/test_detection.sh
 
 ## 安全说明
 
-Linux To Go 只通过 HTTPS 从对应软件的上游服务获取安装内容。Clash Verge Rev 2.5.2 的 amd64 和 arm64 包都会执行 SHA-256 校验；开发时提供的 NoMachine 9.8.3 ARM64 包摘要也已经固定用于额外完整性验证。临时下载文件使用 `mktemp` 创建并在安装后清理。
+Linux To Go 通过 HTTPS 获取安装内容。Clash Verge Rev 2.5.2 的 amd64 和 arm64 包都会执行 SHA-256 校验；本仓库 Release 中的 NoMachine 9.8.3 ARM64 安装包也明确记录了 SHA-256，用户可以在安装前自行校验下载文件完整性。
 
 建议在重要生产设备上使用前先阅读一遍脚本；对于本文档未声明支持的 Ubuntu 版本，不要强行绕过版本检查。
