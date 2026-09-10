@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${LINUX_TO_GO_LIB_DIR:-}" ]]; then
+  LIB_DIR="$LINUX_TO_GO_LIB_DIR"
+elif [[ -d "$SCRIPT_DIR/../lib" ]]; then
+  LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
+  : "${LTG_NOMACHINE_PACKAGE_DIR:=$(cd "$SCRIPT_DIR/.." && pwd)/packages}"
+  export LTG_NOMACHINE_PACKAGE_DIR
+else
+  LIB_DIR="/usr/local/lib/linux-to-go"
+fi
+
+for module in common system clash-verge nomachine ros; do
+  if [[ ! -r "$LIB_DIR/$module.sh" ]]; then
+    printf '[ERROR] Missing Linux To Go module: %s\n' "$LIB_DIR/$module.sh" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1090
+  source "$LIB_DIR/$module.sh"
+done
+
+usage() {
+  cat <<'USAGE'
+Linux To Go - Ubuntu environment bootstrap
+
+Usage:
+  linux-to-go -ros1
+  linux-to-go --ros1
+  linux-to-go -ros2
+  linux-to-go --ros2
+  linux-to-go --help
+
+Supported combinations:
+  Ubuntu 20.04 -> ROS 1 Noetic (-ros1)
+  Ubuntu 22.04 -> ROS 2 Humble (-ros2)
+
+Both amd64 and arm64 are supported.
+USAGE
+}
+
+main() {
+  if [[ $# -eq 1 && ( "$1" == "--help" || "$1" == "-h" ) ]]; then
+    usage
+    return 0
+  fi
+
+  local mode
+  if ! mode="$(parse_ros_mode "$@")"; then
+    log_error "Choose exactly one mode: -ros1 or -ros2."
+    usage >&2
+    return 2
+  fi
+
+  detect_system
+  log_info "Ubuntu ${LTG_UBUNTU_VERSION} detected"
+  log_info "Architecture: ${LTG_ARCH}"
+
+  # Strict compatibility validation happens before any package changes.
+  validate_ros_request "$mode"
+  log_info "Requested target: $(target_ros_distro "$mode")"
+
+  install_common_packages
+  install_clash_verge
+  install_nomachine
+  install_requested_ros "$mode"
+
+  log_ok "Linux To Go completed"
+  log_info "Open a new terminal, or source the matching ROS setup file to use ROS immediately."
+}
+
+main "$@"
