@@ -117,46 +117,51 @@ The installer verifies the downloaded DEB with the release SHA-256 before instal
 
 ## NoMachine 9.8.3
 
-Linux To Go targets **NoMachine 9.8.3**. If NoMachine is not already installed, the installer selects the DEB for the current CPU architecture and downloads it from NoMachine's official download service.
+Linux To Go targets **NoMachine 9.8.3**. The repository now also provides the ARM64 package as a GitHub Release asset so ARM Linux users can download the exact package directly from this project.
 
-Expected package names:
+### Repository Release download
 
-```text
-amd64: nomachine_9.8.3_1_amd64.deb
-arm64: nomachine_9.8.3_1_arm64.deb
-```
+| Architecture | Package | Download | SHA-256 |
+|---|---|---|---|
+| arm64 | `nomachine_9.8.3_1_arm64.deb` | [Download from Linux_togo Releases](https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb) | `be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad` |
 
-The ARM64 package supplied during development was verified as:
+Release page: <https://github.com/ssybh2/Linux_togo/releases/tag/nomachine>
+
+The uploaded Release asset has the following verified metadata:
 
 ```text
 Package:      nomachine
 Version:      9.8.3-1
 Architecture: arm64
+Size:         77,575,208 bytes
 SHA-256:      be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad
 ```
 
-NoMachine announced version 9.8.3 on 4 September 2026. See the official update notice: <https://kb.nomachine.com/SU09X00285>
-
-### Why the NoMachine DEB is not stored in this repository
-
-NoMachine's End User License Agreement restricts redistribution of its software without written permission. For that reason, this public repository contains **installation logic, not a redistributed NoMachine binary**. The command downloads NoMachine from NoMachine's own service at installation time.
-
-Official licensing information: <https://www.nomachine.com/licensing>
-
-### Use your own local NoMachine package
-
-If you already have a legally obtained NoMachine DEB, you can use it instead of downloading another copy:
+For manual installation on an ARM64 Ubuntu machine:
 
 ```bash
-LINUX_TO_GO_NOMACHINE_DEB=/absolute/path/to/nomachine_9.8.3_1_arm64.deb \
+wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
+sudo apt install ./nomachine_9.8.3_1_arm64.deb
+```
+
+You can also download it from a browser through the Release page above.
+
+### Use the Release package with Linux To Go
+
+If you want Linux To Go to use the package downloaded from this repository Release instead of downloading another copy, run:
+
+```bash
+wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
+
+LINUX_TO_GO_NOMACHINE_DEB="$PWD/nomachine_9.8.3_1_arm64.deb" \
   linux-to-go -ros2
 ```
 
-The installer reads the package with `dpkg-deb` and rejects it when its Debian `Architecture` does not match the host.
+The installer reads the package metadata using `dpkg-deb` and rejects the package if its Debian `Architecture` does not match the host.
 
-When running the CLI directly from a repository checkout, you may alternatively place the package in `packages/`. All `.deb` files in that directory are ignored by Git so they are not accidentally redistributed.
+> The currently uploaded repository Release contains the **ARM64** build. Do not install this file on an `amd64` / Intel / AMD x86-64 computer. For those machines, Linux To Go continues to select the appropriate amd64 package through its NoMachine installer logic.
 
-See [`packages/README.md`](./packages/README.md) for details.
+NoMachine announced version 9.8.3 on 4 September 2026. See the official update notice: <https://kb.nomachine.com/SU09X00285>
 
 ---
 
@@ -384,6 +389,6 @@ The suite covers the Ubuntu/ROS compatibility matrix, ROS-installed detection, a
 
 ## Security notes
 
-Linux To Go downloads software only over HTTPS from the component's intended upstream service. Clash Verge Rev v2.5.2 downloads are checksum-verified for both supported architectures. The supplied NoMachine 9.8.3 ARM64 package checksum is pinned as an additional integrity check. Temporary downloads are created with `mktemp` and removed after installation.
+Linux To Go downloads software over HTTPS. Clash Verge Rev v2.5.2 downloads are checksum-verified for both supported architectures. The repository-hosted NoMachine 9.8.3 ARM64 Release asset is documented with its SHA-256 digest so users can verify the downloaded package before installation.
 
 Review the scripts before running them on machines that contain important data, especially when using the project beyond its documented Ubuntu versions.
