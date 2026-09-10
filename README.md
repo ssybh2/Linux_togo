@@ -7,6 +7,7 @@
 - 🇨🇳 **中文（当前页面）**
 - 🇬🇧 [English](./README_EN.md)
 - 🇰🇷 [한국어](./README_KR.md)
+- 🇹🇭 [ภาษาไทย](./README_TH.md)
 
 ---
 
@@ -148,7 +149,7 @@ sudo ./install.sh
 
 ---
 
-## English / 한국어
+## English / 한국어 / ภาษาไทย
 
 完整英文说明：
 
@@ -157,3 +158,7 @@ sudo ./install.sh
 한국어 문서:
 
 [README_KR.md](./README_KR.md)
+
+เอกสารภาษาไทย:
+
+[README_TH.md](./README_TH.md)
