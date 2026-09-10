@@ -2,24 +2,20 @@
 
 [English](./README.md)
 
-`Linux To Go` 的目标是把一台刚安装好的 Ubuntu 电脑快速配置成可用的机器人开发环境。执行一次命令后，它会自动处理基础工具、**Clash Verge Rev 2.5.2**、**NoMachine 9.8.3**，以及命令中指定的 ROS 环境。
+`Linux To Go` 用于把一台刚安装好的 Ubuntu 电脑快速配置成机器人开发环境。完成一次 bootstrap 后，用户只需要一条命令，就可以自动处理基础工具、**Clash Verge Rev 2.5.2**、**NoMachine 9.8.3** 和对应的 ROS 环境。
 
-第一版刻意采用严格的 Ubuntu / ROS 对应关系，避免新电脑因为错误版本组合而把系统环境配乱。
+## 支持关系
 
 | Ubuntu | 命令 | ROS 目标 |
 |---|---|---|
 | **Ubuntu 20.04 LTS** | `linux-to-go -ros1` | **ROS 1 Noetic** |
 | **Ubuntu 22.04 LTS** | `linux-to-go -ros2` | **ROS 2 Humble** |
 
-当前支持 **amd64** 和 **arm64** 两种 CPU 架构。
+当前支持 **amd64** 和 **arm64**。
 
-> 在 Ubuntu 22.04 上执行 `-ros1`，或者在 Ubuntu 20.04 上执行 `-ros2`，程序会直接停止并提示正确用法。第一版不会通过 Docker、源码编译 ROS 或自动升级系统来绕过这个兼容规则。
+版本关系采用严格匹配：Ubuntu 22.04 执行 `-ros1`，或 Ubuntu 20.04 执行 `-ros2`，都会在开始安装软件之前直接停止并提示正确命令。
 
----
-
-## 一分钟快速开始
-
-先克隆仓库并安装一次 `linux-to-go` 命令：
+## 一分钟开始
 
 ```bash
 git clone https://github.com/ssybh2/Linux_togo.git
@@ -27,228 +23,136 @@ cd Linux_togo
 sudo ./install.sh
 ```
 
-之后建议使用**普通登录用户**运行 `linux-to-go`；真正需要修改系统的位置，脚本会自行调用 `sudo`。
-
-Ubuntu 20.04：
+之后使用普通登录用户运行：
 
 ```bash
+# Ubuntu 20.04
 linux-to-go -ros1
-```
 
-Ubuntu 22.04：
-
-```bash
+# Ubuntu 22.04
 linux-to-go -ros2
 ```
 
-同时支持长参数：
+同时支持：
 
 ```bash
 linux-to-go --ros1
 linux-to-go --ros2
 ```
 
-查看帮助：
-
-```bash
-linux-to-go --help
-```
-
----
-
-## 一条命令具体会做什么
-
-执行顺序固定为：
+## 一条命令会完成什么
 
 ```text
-1. 检测 Ubuntu 版本和 CPU 架构
-2. 在修改系统之前检查 Ubuntu / ROS 是否严格匹配
-3. 安装必要的基础工具
-4. 检查 Clash Verge Rev；没有安装才安装 2.5.2
-5. 检查 NoMachine；没有安装才安装 9.8.3
-6. 只检查本次命令指定的 ROS 家族
-   ├── 已经安装 -> 跳过 ROS 安装
-   └── 尚未安装 -> 安装 Noetic 或 Humble
-7. 只向 ~/.bashrc 添加一次对应的 ROS 环境加载命令
+linux-to-go -ros1 / -ros2
+        |
+        +-- 检测 Ubuntu 版本与 CPU 架构
+        +-- 检查 Ubuntu / ROS 是否匹配
+        +-- 安装缺少的基础工具
+        +-- 检查并安装 Clash Verge Rev 2.5.2
+        +-- 检查并安装 NoMachine 9.8.3
+        |     +-- 已安装 -> SKIP
+        |     +-- arm64 -> 本仓库 GitHub Release -> SHA-256 -> apt 安装
+        |     +-- amd64 -> NoMachine 官方源 -> apt 安装
+        |     +-- ARM64 Release 下载失败 -> 回退 NoMachine 官方源
+        +-- 只检查命令指定的 ROS 家族
+              +-- 已安装 -> SKIP
+              +-- 未安装 -> 安装 Noetic 或 Humble
 ```
 
-典型输出类似：
-
-```text
-[INFO] Ubuntu 22.04 detected
-[INFO] Architecture: amd64
-[INFO] Requested target: humble
-[CHECK] Clash Verge Rev
-[SKIP] Clash Verge Rev installation
-[CHECK] NoMachine
-[SKIP] NoMachine installation
-[CHECK] ROS 2
-[OK] ROS 2 humble already installed
-[SKIP] ROS 2 installation
-[OK] Linux To Go completed
-```
-
-### ROS 会先检测，再决定是否安装
-
-这是本工具的核心行为之一：
-
-- `linux-to-go -ros1` **只判断 ROS 1 是否已安装**。
-- `linux-to-go -ros2` **只判断 ROS 2 是否已安装**。
-- 已经有 ROS 1 并不代表 ROS 2 已安装，反过来也一样。
-- 如果目标 ROS 已存在，就直接显示 `[SKIP]`，不会重复安装。
-
-检测并不只看当前终端有没有 `source` ROS。程序还会检查 `/opt/ros` 下的标准安装目录、可用的 ROS 命令和对应 Debian 软件包，因此即使刚打开的新终端尚未加载 `setup.bash`，也能识别已经安装的 ROS。
-
----
+整个安装流程按照幂等方式设计：已经存在的组件会跳过，不会主动重复安装。
 
 ## Clash Verge Rev 2.5.2
 
-当前版本固定使用 **Clash Verge Rev v2.5.2**，直接从项目官方 GitHub Release 下载。
-
-Linux 官方 DEB：
+Linux To Go 固定使用 **Clash Verge Rev v2.5.2**，从 Clash Verge Rev 官方 GitHub Release 下载。
 
 | 架构 | 安装包 | SHA-256 |
 |---|---|---|
 | amd64 | [Clash.Verge_2.5.2_amd64.deb](https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.5.2/Clash.Verge_2.5.2_amd64.deb) | `035c83ed14b16df1dd397e5d710b34bedd5d27beb6678549ceaeeadf9bc167ed` |
 | arm64 | [Clash.Verge_2.5.2_arm64.deb](https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.5.2/Clash.Verge_2.5.2_arm64.deb) | `598a5a852d7bf9dc40a976780ef2afc9a4e5bfe7b99533e5f956f9e2f9def72f` |
 
-官方 Release 页面：<https://github.com/clash-verge-rev/clash-verge-rev/releases/tag/v2.5.2>
-
-脚本在安装之前会对下载的 DEB 计算 SHA-256，并与官方 Release 中的摘要进行比对。
-
----
+下载后会先校验 SHA-256，再执行安装。
 
 ## NoMachine 9.8.3
 
-Linux To Go 固定目标为 **NoMachine 9.8.3**。现在仓库自己的 **GitHub Releases** 中已经提供了 ARM64 安装包，因此 ARM Linux 用户可以直接从本项目下载这一固定版本。
+NoMachine 已经正式封装进 **`linux-to-go -ros1` 和 `linux-to-go -ros2`** 两条流程。
 
-### 本仓库 Release 直接下载
+### ARM64：自动从本仓库 Release 下载
 
-| 架构 | 安装包 | 下载 | SHA-256 |
-|---|---|---|---|
-| arm64 | `nomachine_9.8.3_1_arm64.deb` | [从 Linux_togo Releases 下载](https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb) | `be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad` |
+本仓库 Release 中已经有：
+
+| 架构 | 安装包 | SHA-256 |
+|---|---|---|
+| arm64 | [nomachine_9.8.3_1_arm64.deb](https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb) | `be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad` |
 
 Release 页面：<https://github.com/ssybh2/Linux_togo/releases/tag/nomachine>
 
-当前上传到 Release 的安装包信息为：
+ARM64 设备正常执行 `linux-to-go` 时**不需要手动下载**。如果系统中没有 NoMachine，脚本会自动执行：
 
 ```text
-Package:      nomachine
-Version:      9.8.3-1
-Architecture: arm64
-Size:         77,575,208 bytes
-SHA-256:      be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad
+Linux_togo GitHub Release
+    -> 下载 nomachine_9.8.3_1_arm64.deb
+    -> 校验 SHA-256
+    -> 检查 DEB Architecture=arm64
+    -> sudo apt-get install
 ```
 
-ARM64 Ubuntu 设备可以直接执行：
+如果本仓库 Release 暂时下载失败，会自动回退到配置好的 NoMachine 官方 ARM64 下载地址。
+
+如果希望手动安装，也可以：
 
 ```bash
 wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
 sudo apt install ./nomachine_9.8.3_1_arm64.deb
 ```
 
-也可以直接打开上面的 Release 页面，用浏览器下载安装包。
+### AMD64
 
-### 让 Linux To Go 使用 Release 中的安装包
+目前 `Linux_togo` 自己的 Release 里只有 ARM64 包。因此普通 Intel / AMD x86-64 电脑运行 `linux-to-go` 时，会继续从 NoMachine 配置的官方下载服务获取 `nomachine_9.8.3_1_amd64.deb`。
 
-如果希望自动部署时明确使用你已经上传到本仓库 Release 的这个 ARM64 包，可以先下载，再传给 `linux-to-go`：
+### 本地安装包覆盖
+
+如果需要，仍然可以指定本地 NoMachine DEB：
 
 ```bash
-wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
-
-LINUX_TO_GO_NOMACHINE_DEB="$PWD/nomachine_9.8.3_1_arm64.deb" \
+LINUX_TO_GO_NOMACHINE_DEB=/绝对路径/nomachine_9.8.3_1_arm64.deb \
   linux-to-go -ros2
 ```
 
-脚本会调用 `dpkg-deb` 读取包的元数据，并检查 `Architecture` 是否与本机一致；不一致会拒绝安装。
+安装前脚本会用 `dpkg-deb` 检查软件包架构，避免把 ARM64 包安装到 amd64 电脑上。
 
-> 当前仓库 Release 中上传的是 **ARM64** 版本。它不能用于普通 Intel / AMD 的 `amd64` x86-64 电脑。对于 amd64 机器，当前 `linux-to-go` 仍会通过 NoMachine 安装模块选择对应 amd64 包。
+## ROS：先检测，没装才安装
 
-NoMachine 官方于 2026 年 9 月 4 日发布 9.8.3。官方更新说明：<https://kb.nomachine.com/SU09X00285>
+工具不会无条件重新安装 ROS。
 
----
+执行 `linux-to-go -ros1` 时，只检查 **ROS 1**。已经安装 ROS 1 就直接跳过；没有安装时，在 Ubuntu 20.04 上安装 **ROS Noetic**。
 
-## Ubuntu 20.04：自动配置 ROS 1 Noetic
+执行 `linux-to-go -ros2` 时，只检查 **ROS 2**。已经安装 ROS 2 就直接跳过；没有安装时，在 Ubuntu 22.04 上安装 **ROS 2 Humble**。
 
-执行：
+检测不仅依赖当前终端有没有 `source` ROS，还会检查 `/opt/ros`、ROS 命令和 Debian 软件包状态，因此新终端也能识别已有 ROS。
+
+### Ubuntu 20.04 / ROS 1 Noetic
 
 ```bash
 linux-to-go -ros1
 ```
 
-程序先检测 ROS 1。如果已经存在，直接跳过。如果没有，则配置 ROS 软件源并安装：
-
-```text
-ros-noetic-desktop-full
-python3-rosdep
-python3-rosinstall
-python3-rosinstall-generator
-python3-wstool
-build-essential
-```
-
-必要时还会初始化 `rosdep`，并且只向当前登录用户的 `~/.bashrc` 添加一次：
+ROS 1 不存在时，脚本安装 Noetic desktop 与常用开发工具，必要时初始化 `rosdep`，并且只向登录用户的 `~/.bashrc` 添加一次：
 
 ```bash
 source /opt/ros/noetic/setup.bash
 ```
 
-安装结束后重新打开终端，或者立即执行：
-
-```bash
-source /opt/ros/noetic/setup.bash
-```
-
----
-
-## Ubuntu 22.04：自动配置 ROS 2 Humble
-
-执行：
+### Ubuntu 22.04 / ROS 2 Humble
 
 ```bash
 linux-to-go -ros2
 ```
 
-程序先检测 ROS 2。如果已经存在，直接跳过。如果没有，则配置 ROS 2 软件源并安装：
-
-```text
-ros-humble-desktop
-ros-dev-tools
-python3-rosdep
-```
-
-必要时会初始化 `rosdep`，并且只向当前登录用户的 `~/.bashrc` 添加一次：
+ROS 2 不存在时，脚本安装 `ros-humble-desktop`、`ros-dev-tools`，必要时初始化 `rosdep`，并且只向 `~/.bashrc` 添加一次：
 
 ```bash
 source /opt/ros/humble/setup.bash
 ```
-
-安装结束后重新打开终端，或者立即执行：
-
-```bash
-source /opt/ros/humble/setup.bash
-```
-
----
-
-## 自动安装的基础工具
-
-脚本首先准备一个尽量小的基础集合：
-
-```text
-ca-certificates
-curl
-wget
-gnupg
-lsb-release
-software-properties-common
-build-essential
-git
-```
-
-APT 本身具有幂等性，已经存在的软件包不会因为再次执行 Linux To Go 就被无意义地重新替换。
-
----
 
 ## 仓库结构
 
@@ -257,8 +161,7 @@ Linux_togo/
 ├── README.md
 ├── README_CN.md
 ├── install.sh
-├── bin/
-│   └── linux-to-go
+├── bin/linux-to-go
 ├── lib/
 │   ├── common.sh
 │   ├── system.sh
@@ -266,88 +169,13 @@ Linux_togo/
 │   ├── nomachine.sh
 │   └── ros.sh
 ├── packages/
-│   ├── .gitignore
-│   └── README.md
-├── tests/
-│   └── test_detection.sh
+├── tests/test_detection.sh
 └── docs/
-    └── superpowers/
-        ├── specs/
-        └── plans/
 ```
 
-执行 `install.sh` 后运行文件位于：
-
-```text
-/usr/local/bin/linux-to-go
-/usr/local/lib/linux-to-go/
-```
-
----
-
-## 常见问题
-
-### `linux-to-go: command not found`
-
-回到仓库根目录重新执行：
-
-```bash
-sudo ./install.sh
-```
-
-然后检查：
-
-```bash
-command -v linux-to-go
-```
-
-正常应显示：
-
-```text
-/usr/local/bin/linux-to-go
-```
-
-### Ubuntu 与 ROS 参数不匹配
-
-例如：
-
-```text
-[ERROR] ROS 1 Noetic is supported by Linux To Go on Ubuntu 20.04 only.
-```
-
-按照本文开头的兼容表选择正确命令即可。这个错误是主动保护机制，而不是安装故障。
-
-### APT 被锁定
-
-如果另一项 `apt` / `dpkg` 操作正在执行，请让它正常结束后再重试。**不要手动删除 APT lock 文件。**
-
-### 本地 NoMachine 包架构不匹配
-
-可以先检查：
-
-```bash
-dpkg-deb -f /path/to/nomachine.deb Package Version Architecture
-```
-
-amd64 电脑使用 amd64 包；arm64 电脑使用 arm64 包。
-
-### ROS 已安装，但当前终端找不到命令
-
-重新打开终端，或者手动加载：
-
-```bash
-# Ubuntu 20.04 / ROS 1
-source /opt/ros/noetic/setup.bash
-
-# Ubuntu 22.04 / ROS 2
-source /opt/ros/humble/setup.bash
-```
-
----
+`sudo ./install.sh` 会把命令安装到 `/usr/local/bin/linux-to-go`，运行模块放到 `/usr/local/lib/linux-to-go/`。
 
 ## 更新 Linux To Go
-
-由于 `/usr/local` 中是仓库脚本的安装副本，更新后重新执行一次 bootstrap：
 
 ```bash
 cd Linux_togo
@@ -355,43 +183,31 @@ git pull
 sudo ./install.sh
 ```
 
-然后重新运行相应的 `-ros1` 或 `-ros2` 即可。已经存在的组件会按检测结果跳过。
+然后重新运行对应的 `-ros1` 或 `-ros2`。已经存在的软件会按照检测结果跳过。
 
----
+## 常见问题
 
-## 只卸载 Linux To Go 工具
-
-下面两条命令**只删除 Linux To Go 本身**，不会卸载 ROS、Clash Verge Rev 或 NoMachine：
+如果提示 `linux-to-go: command not found`，重新执行 `sudo ./install.sh`，然后检查：
 
 ```bash
-sudo rm -f /usr/local/bin/linux-to-go
-sudo rm -rf /usr/local/lib/linux-to-go
+command -v linux-to-go
 ```
 
----
+如果 Ubuntu / ROS 参数不匹配，请按照本文最上方的版本表选择命令，不建议强行绕过。
+
+如果 APT 被锁定，请等待其他 `apt` / `dpkg` 操作正常结束，不要手动删除 lock 文件。
+
+查看本地 NoMachine 包架构：
+
+```bash
+dpkg-deb -f /path/to/nomachine.deb Package Version Architecture
+```
 
 ## 开发与测试
 
-测试使用环境变量和临时目录模拟不同 Ubuntu / ROS 状态，不会真的在测试机器上安装 ROS 或桌面软件。
-
-Shell 语法检查：
-
 ```bash
 bash -n install.sh bin/linux-to-go lib/*.sh tests/test_detection.sh
-```
-
-运行行为测试：
-
-```bash
 bash tests/test_detection.sh
 ```
 
-测试覆盖 Ubuntu / ROS 严格对应关系、目标 ROS 已安装时跳过、amd64 / arm64 选择、Clash Verge 下载信息与校验值、NoMachine 包选择，以及 CLI 参数行为。
-
----
-
-## 安全说明
-
-Linux To Go 通过 HTTPS 获取安装内容。Clash Verge Rev 2.5.2 的 amd64 和 arm64 包都会执行 SHA-256 校验；本仓库 Release 中的 NoMachine 9.8.3 ARM64 安装包也明确记录了 SHA-256，用户可以在安装前自行校验下载文件完整性。
-
-建议在重要生产设备上使用前先阅读一遍脚本；对于本文档未声明支持的 Ubuntu 版本，不要强行绕过版本检查。
+测试覆盖 Ubuntu / ROS 严格匹配、已有 ROS 时跳过安装、amd64 / arm64 架构选择、Clash Verge 包与校验值，以及 **NoMachine ARM64 从 Linux_togo Release 自动下载并保留官方回退地址**的逻辑。
