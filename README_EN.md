@@ -1,99 +1,46 @@
-# Linux To Go 🚀
+# Linux To Go
 
-> One-click Ubuntu bootstrap tool for robotics development.
+Ubuntu application and optional ROS installer. [中文](README.md) · [한국어](README_KR.md) · [ภาษาไทย](README_TH.md)
 
-Language:
+Supports Ubuntu 20.04 / 22.04 on amd64 and arm64. Intel Core i5 PCs use **amd64**.
 
-- 🇨🇳 [中文](./README.md)
-- 🇬🇧 **English (current page)**
-- 🇰🇷 [한국어](./README_KR.md)
+## Existing ROS installation
 
----
+Use `--apps-only` to install Clash Verge Rev and NoMachine without invoking ROS installation or changing ROS sources or shell configuration. This mode installs only missing bootstrap utilities and application runtime dependencies, without extra compiler tools.
 
-## Introduction
-
-`Linux To Go` is an automated Ubuntu environment setup tool for robotics, ROS and AI development.
-
-After one bootstrap step, users can configure a fresh Ubuntu machine with:
-
-- Common development tools
-- Clash Verge Rev 2.5.2
-- NoMachine 9.8.3
-- ROS environment detection and installation
-
-The goal is to turn a clean Ubuntu installation into a ready-to-use robotics workstation quickly.
-
----
-
-## Supported Matrix
-
-| Ubuntu | Command | ROS |
-|---|---|---|
-| Ubuntu 20.04 LTS | `linux-to-go -ros1` | ROS 1 Noetic |
-| Ubuntu 22.04 LTS | `linux-to-go -ros2` | ROS 2 Humble |
-
-Supported architectures:
-
-- amd64
-- arm64
-
-The Ubuntu and ROS versions are strictly matched.
-
----
-
-## Quick Start
+**On amd64, first copy a trusted existing NoMachine DEB to the new PC.** The former NoMachine 9.8.3 vendor URL now redirects to HTML. The repository release contains only ARM64. Do not use the ARM64 package on Intel/AMD PCs.
 
 ```bash
-git clone https://github.com/ssybh2/Linux_togo.git
-cd Linux_togo
+# If git is missing: sudo apt update && sudo apt install -y git
+git clone https://github.com/ssybh2/Linux_togo.git ~/Linux_togo
+cd ~/Linux_togo
 sudo ./install.sh
+
+# Replace with your actual local package path
+LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
+linux-to-go --check
+sudo /usr/NX/bin/nxserver --status
 ```
 
-Then run:
+If NoMachine is already installed, or on ARM64, use `linux-to-go --apps-only` without the environment variable. Missing or invalid explicit packages fail before application installation. Local packages are checked for package name and architecture; arbitrary local versions have no pinned checksum.
+
+Clash Verge Rev **2.5.2** comes from its official GitHub release, with SHA-256 and DEB metadata verification. ARM64 NoMachine **9.8.3-1** comes from this repository's release with a pinned SHA-256. Failed downloads no longer fall back to retired vendor URLs. Current [NoMachine Personal Edition](https://download.nomachine.com/personal-edition/) requires subscription activation or a trial and is not substituted automatically.
+
+After installation, launch Clash Verge as a regular desktop user, import your own subscription and choose a node before enabling your desired proxy mode. Connect to NoMachine from another client using the PC's LAN IP and Ubuntu credentials (default TCP 4000). The installer does not configure subscriptions, system proxies, firewall rules or desktop sessions.
+
+## Other modes and updates
+
+- `linux-to-go --check`: report installed components without installing anything.
+- `linux-to-go -ros1`: Ubuntu 20.04, optional ROS 1 Noetic installation.
+- `linux-to-go -ros2`: Ubuntu 22.04, optional ROS 2 Humble installation.
+
+ROS modes also install the applications and require a local NoMachine package on amd64. This review focused on application installation; fresh-system ROS installation was not validated.
 
 ```bash
-linux-to-go -ros1
-```
-
-or
-
-```bash
-linux-to-go -ros2
-```
-
----
-
-## Features
-
-### Clash Verge Rev 2.5.2
-
-- amd64 / arm64 support
-- Official release download
-- SHA-256 verification
-
-### NoMachine 9.8.3
-
-- Automatic architecture detection
-- ARM64 GitHub Release package
-- AMD64 official download fallback
-
-### ROS Management
-
-Supported:
-
-- ROS 1 Noetic
-- ROS 2 Humble
-
-Existing ROS installations are detected and skipped automatically.
-
----
-
-## Update
-
-```bash
-cd Linux_togo
-git pull
+cd ~/Linux_togo
+git pull --ff-only
 sudo ./install.sh
+linux-to-go --check
 ```
 
-For the complete Chinese documentation, see [README.md](./README.md).
+Installed applications are skipped, not automatically upgraded. See [Chinese details](README_CN.md) for checksums and [audit notes](docs/install-audit.md) for fixes and test scope.

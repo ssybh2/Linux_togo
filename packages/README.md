@@ -3,10 +3,12 @@
 NoMachine binaries are not committed to this public repository. If you already have a legally obtained NoMachine package, place it in this directory before running the repository-local CLI, or pass its absolute path with:
 
 ```bash
-LINUX_TO_GO_NOMACHINE_DEB=/path/to/nomachine_9.8.3_1_arm64.deb linux-to-go -ros2
+LINUX_TO_GO_NOMACHINE_DEB=/path/to/nomachine_9.7.3_1_amd64.deb linux-to-go --apps-only
 ```
 
-The installer reads the Debian package metadata and refuses to install a package whose `Architecture` does not match the host.
+Use amd64 packages on Intel/AMD PCs and arm64 packages on ARM devices. The installer checks both `Package: nomachine` and the host architecture. A missing explicit path fails without downloading a replacement. Arbitrary local versions do not have a pinned checksum: use a trusted installer.
+
+Automatic discovery of this directory works with `./bin/linux-to-go` from the repository. After `sudo ./install.sh`, the global command needs the explicit package path shown above. Legacy vendor amd64 URLs no longer serve DEBs, so amd64 requires a local package unless NoMachine is already installed. ARM64 can download the verified repository release automatically.
 
 For the supplied ARM64 package used while developing this project:
 

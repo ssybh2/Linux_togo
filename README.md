@@ -1,164 +1,74 @@
-# Linux To Go 🚀
+# Linux To Go
 
-> **Ubuntu 机器人开发环境一键部署工具**
+Ubuntu 机器人开发环境安装工具：Clash Verge Rev、NoMachine，以及可选的 ROS 安装。
 
-语言切换：
+[中文详细说明](README_CN.md) · [English](README_EN.md) · [한국어](README_KR.md) · [ภาษาไทย](README_TH.md)
 
-- 🇨🇳 **中文（当前页面）**
-- 🇬🇧 [English](./README_EN.md)
-- 🇰🇷 [한국어](./README_KR.md)
-- 🇹🇭 [ภาษาไทย](./README_TH.md)
+## 已有 ROS2 Humble：只安装两个应用
 
----
+适用于 Ubuntu 22.04。Intel Core i5 / AMD x86-64 电脑使用 **amd64**，ARM 电脑使用 arm64。
 
-## 项目简介
-
-`Linux To Go` 是一个面向机器人、ROS 和 AI 开发者的 Ubuntu 自动化环境配置工具。
-
-只需要一次初始化，即可通过一条命令自动完成：
-
-- 基础开发环境安装
-- Clash Verge Rev 2.5.2 安装
-- NoMachine 9.8.3 远程桌面安装
-- ROS 环境检测与安装
-
-设计目标：让新的 Ubuntu 设备可以快速变成可用于机器人开发的工作站。
-
----
-
-## 支持环境
-
-| Ubuntu | 命令 | ROS版本 |
-|---|---|---|
-| Ubuntu 20.04 LTS | `linux-to-go -ros1` | ROS 1 Noetic |
-| Ubuntu 22.04 LTS | `linux-to-go -ros2` | ROS 2 Humble |
-
-支持架构：
-
-- amd64
-- arm64
-
-工具会严格检查 Ubuntu 与 ROS 匹配关系：
-
-- Ubuntu 20.04 → ROS 1 Noetic
-- Ubuntu 22.04 → ROS 2 Humble
-
-不支持组合会在安装前自动阻止。
-
----
-
-## 快速开始
+**amd64 需要先准备本地 NoMachine 安装包。** 原 NoMachine 9.8.3 官方链接已失效；请将旧电脑上可信的 `nomachine_*_amd64.deb` 复制到新电脑，例如 `~/Downloads/nomachine_9.7.3_1_amd64.deb`。不要使用 ARM64 包。
 
 ```bash
-git clone https://github.com/ssybh2/Linux_togo.git
-cd Linux_togo
+# 没有 git 时先运行：sudo apt update && sudo apt install -y git
+git clone https://github.com/ssybh2/Linux_togo.git ~/Linux_togo
+cd ~/Linux_togo
 sudo ./install.sh
+
+# 将路径替换成实际存在的 amd64 安装包
+LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
+
+linux-to-go --check
+sudo /usr/NX/bin/nxserver --status
 ```
 
-安装完成后：
+`--apps-only` 不调用 ROS 安装流程，不修改 ROS 软件源或 `.bashrc`，不额外安装编译工具。应用自身必需的运行依赖由 APT 处理。已安装应用直接跳过。
 
-Ubuntu 20.04:
+如果 NoMachine 已安装，或使用 ARM64 设备，可直接运行：
 
 ```bash
-linux-to-go -ros1
+linux-to-go --apps-only
 ```
 
-Ubuntu 22.04:
+安装完成后，以普通桌面用户打开 Clash Verge，导入自己的订阅并选择节点，再按需要开启代理。NoMachine 安装包通常会启动服务；另一台电脑上的 NoMachine 客户端可通过本机局域网 IP 连接，默认使用 TCP 4000 和 Ubuntu 登录账号。
 
-```bash
-linux-to-go -ros2
-```
+## 下载与校验
 
----
+- Clash Verge Rev 固定为 **2.5.2**：官方 GitHub Release，校验 SHA-256、包名、版本和架构。
+- NoMachine ARM64：本仓库 Release 中的 **9.8.3-1**，校验 SHA-256 和 DEB 元数据。
+- NoMachine AMD64：使用用户提供的本地 DEB，检查包名和架构；没有包时在安装任何组件前停止并提示。
 
-## 自动执行流程
+当前 NoMachine 官网提供的 [Personal Edition](https://download.nomachine.com/personal-edition/) 需要订阅激活或试用，因此脚本不会自动将旧版替换为该产品。详细步骤与校验值见[安装说明](README_CN.md)。
 
-```text
-linux-to-go
-    |
-    +-- 检测 Ubuntu 版本
-    +-- 检测 CPU 架构
-    +-- 检查 ROS 是否已经安装
-    +-- 安装 Clash Verge Rev 2.5.2
-    +-- 安装 NoMachine 9.8.3
-    +-- 安装 ROS Noetic / Humble
-    +-- 自动配置开发环境
-```
+## 包含 ROS 的安装模式
 
-所有模块均采用幂等设计：
+| 系统 | 命令 | 目标 |
+|---|---|---|
+| Ubuntu 20.04 | `linux-to-go -ros1` | ROS 1 Noetic |
+| Ubuntu 22.04 | `linux-to-go -ros2` | ROS 2 Humble |
 
-已经安装的软件会自动检测并跳过，不会重复安装。
-
----
-
-## 主要功能
-
-### 🌐 Clash Verge Rev 2.5.2
-
-- 支持 amd64 / arm64
-- 官方 Release 下载
-- SHA-256 校验
-
-### 🖥 NoMachine 9.8.3
-
-- ARM64 使用 Linux_togo Release 自动下载
-- AMD64 使用官方源
-- 自动检测架构
-
-### 🤖 ROS 自动管理
-
-支持：
-
-- ROS 1 Noetic
-- ROS 2 Humble
-
-安装前自动检测已有 ROS：
-
-```text
-已安装 → SKIP
-未安装 → 自动安装
-```
-
----
-
-## 仓库结构
-
-```text
-Linux_togo/
-├── install.sh
-├── bin/linux-to-go
-├── lib/
-│   ├── common.sh
-│   ├── system.sh
-│   ├── clash-verge.sh
-│   ├── nomachine.sh
-│   └── ros.sh
-├── packages/
-└── tests/
-```
-
----
+两种模式也会安装应用，AMD64 同样需要提前提供 NoMachine DEB。已有 Humble 的电脑优先使用 `--apps-only`。本次修正重点为应用安装流程，未在全新系统验证上述 ROS 完整安装模式。
 
 ## 更新
 
 ```bash
-cd Linux_togo
-git pull
+cd ~/Linux_togo
+git pull --ff-only
 sudo ./install.sh
+linux-to-go --check
 ```
 
----
+更新脚本后，按需要重新执行 `--apps-only`。已安装应用不会自动升级。
 
-## English / 한국어 / ภาษาไทย
+## 测试
 
-完整英文说明：
+```bash
+for script in install.sh bin/linux-to-go lib/*.sh tests/*.sh; do
+  bash -n "$script" || break
+done
+bash tests/test_detection.sh
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
 
-[README_EN.md](./README_EN.md)
-
-한국어 문서:
-
-[README_KR.md](./README_KR.md)
-
-เอกสารภาษาไทย:
-
-[README_TH.md](./README_TH.md)
+测试使用临时 DEB 和模拟 APT/网络命令，不安装系统软件。[审查记录](docs/install-audit.md)。

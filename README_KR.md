@@ -49,7 +49,18 @@ cd Linux_togo
 sudo ./install.sh
 ```
 
-설치 후:
+ROS가 이미 설치된 PC에서는 `--apps-only`를 사용하세요. ROS 설정과 컴파일 도구를 추가로 설치하지 않습니다.
+
+Intel Core i5 PC는 **amd64**입니다. 먼저 신뢰할 수 있는 기존 설치 파일을 새 PC로 복사하세요:
+
+```bash
+LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
+linux-to-go --check
+```
+
+NoMachine이 이미 설치되어 있거나 ARM64 PC라면 `linux-to-go --apps-only`만 실행하면 됩니다. 새 Personal Edition으로 자동 대체하지 않습니다. 자세한 내용은 [English](README_EN.md)를 참고하세요.
+
+ROS 설치도 필요한 경우:
 
 Ubuntu 20.04:
 
@@ -76,7 +87,7 @@ linux-to-go -ros2
 ### NoMachine 9.8.3
 
 - ARM64 자동 설치 지원
-- AMD64 공식 다운로드 지원
+- AMD64는 신뢰할 수 있는 로컬 DEB 필요 (기존 공식 URL은 더 이상 유효하지 않음)
 - 아키텍처 자동 확인
 
 ### ROS 관리
@@ -94,7 +105,7 @@ linux-to-go -ros2
 
 ```bash
 cd Linux_togo
-git pull
+git pull --ff-only
 sudo ./install.sh
 ```
 

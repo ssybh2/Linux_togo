@@ -46,8 +46,8 @@ detect_ros2() {
   fi
 
   if [[ "${LTG_TEST_DISABLE_COMMAND_DETECTION:-0}" != "1" ]]; then
-    if command_exists ros2; then
-      LTG_DETECTED_ROS2_DISTRO="${ROS_DISTRO:-unknown}"
+    if command_exists ros2 && [[ "${ROS_DISTRO:-}" == "humble" ]]; then
+      LTG_DETECTED_ROS2_DISTRO="humble"
       return 0
     fi
     if package_installed ros-humble-ros-core || package_installed ros-humble-ros-base || package_installed ros-humble-desktop; then

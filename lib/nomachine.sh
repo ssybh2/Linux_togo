@@ -16,20 +16,16 @@ nomachine_asset_url() {
   local arch="$1" name
   name="$(nomachine_asset_name "$arch")" || return 1
   case "$arch" in
-    amd64) printf 'https://download.nomachine.com/download/9.8/Linux/%s\n' "$name" ;;
+    amd64) log_error 'The legacy NoMachine amd64 endpoint no longer serves a DEB. Set LINUX_TO_GO_NOMACHINE_DEB to a trusted local nomachine_*_amd64.deb.'; return 1 ;;
     arm64) printf '%s/%s\n' "$NOMACHINE_RELEASE_BASE_URL" "$name" ;;
     *) return 1 ;;
   esac
 }
 
 nomachine_fallback_url() {
-  local arch="$1" name
-  name="$(nomachine_asset_name "$arch")" || return 1
-  case "$arch" in
-    amd64) printf 'https://web9001.nomachine.com/download/9.8/Linux/%s\n' "$name" ;;
-    arm64) printf 'https://web9001.nomachine.com/download/9.8/Arm/%s\n' "$name" ;;
-    *) return 1 ;;
-  esac
+  # The former 9.x vendor links redirect to HTML. Do not replace them with
+  # Personal Edition 10.x, which has different activation requirements.
+  return 1
 }
 
 nomachine_asset_sha256() {
@@ -47,7 +43,7 @@ nomachine_is_installed() {
     [[ "$LTG_TEST_NOMACHINE_PRESENT" == "1" ]]
     return
   fi
-  package_installed nomachine || [[ -x /usr/NX/bin/nxserver ]] || [[ -x /usr/NX/bin/nxplayer ]]
+  package_installed nomachine || [[ -x /usr/NX/bin/nxserver ]]
 }
 
 find_nomachine_local_package() {
@@ -56,44 +52,50 @@ find_nomachine_local_package() {
 
   if [[ -n "${LINUX_TO_GO_NOMACHINE_DEB:-}" ]]; then
     [[ -f "$LINUX_TO_GO_NOMACHINE_DEB" ]] || return 1
-    printf '%s\n' "$LINUX_TO_GO_NOMACHINE_DEB"
+    realpath -- "$LINUX_TO_GO_NOMACHINE_DEB"
     return 0
   fi
 
   dir="${LTG_NOMACHINE_PACKAGE_DIR:-}"
   if [[ -n "$dir" && -f "$dir/$expected" ]]; then
-    printf '%s\n' "$dir/$expected"
+    realpath -- "$dir/$expected"
     return 0
   fi
 
   if [[ -n "$dir" ]]; then
-    candidate="$(find "$dir" -maxdepth 1 -type f -name 'nomachine_*_*.deb' -print -quit 2>/dev/null || true)"
-    [[ -n "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+    candidate="$(find "$dir" -maxdepth 1 -type f -name "nomachine_*_${arch}.deb" -print -quit 2>/dev/null || true)"
+    [[ -n "$candidate" ]] && { realpath -- "$candidate"; return 0; }
   fi
   return 1
 }
 
 validate_deb_architecture() {
-  local package="$1" expected_arch="$2" actual_arch
-  actual_arch="$(dpkg-deb -f "$package" Architecture 2>/dev/null)" || {
-    log_error "Unable to read Debian package metadata: $package"
-    return 1
-  }
-  [[ "$actual_arch" == "$expected_arch" ]] || {
-    log_error "NoMachine package architecture mismatch: package=$actual_arch host=$expected_arch"
-    return 1
-  }
+  validate_deb_package "$1" nomachine "$2"
 }
 
 _download_nomachine() {
-  local arch="$1" output="$2" primary fallback
-  primary="$(nomachine_asset_url "$arch")"
-  fallback="$(nomachine_fallback_url "$arch")"
-  if download_file "$primary" "$output"; then
-    return 0
+  local arch="$1" output="$2" primary
+  primary="$(nomachine_asset_url "$arch")" || return 1
+  download_file "$primary" "$output" || {
+    log_error 'NoMachine download failed. Supply a trusted package using LINUX_TO_GO_NOMACHINE_DEB.'; return 1;
+  }
+  validate_deb_package "$output" nomachine "$arch" "${NOMACHINE_VERSION}-${NOMACHINE_BUILD}"
+}
+
+preflight_nomachine() {
+  nomachine_is_installed && return 0
+  local package
+  if [[ -n "${LINUX_TO_GO_NOMACHINE_DEB:-}" && ! -f "$LINUX_TO_GO_NOMACHINE_DEB" ]]; then
+    log_error "Specified NoMachine package does not exist: $LINUX_TO_GO_NOMACHINE_DEB"
+    return 1
   fi
-  log_warn "Primary NoMachine endpoint failed; trying the official fallback endpoint."
-  download_file "$fallback" "$output"
+  if package="$(find_nomachine_local_package "$LTG_ARCH")"; then
+    validate_deb_architecture "$package" "$LTG_ARCH" || return 1
+  elif [[ "$LTG_ARCH" == "amd64" ]]; then
+    nomachine_asset_url "$LTG_ARCH" >/dev/null
+    return 1
+  fi
+  return 0
 }
 
 install_nomachine() {
@@ -105,32 +107,44 @@ install_nomachine() {
   fi
 
   local arch="${LTG_ARCH:?system architecture not detected}" local_pkg="" checksum=""
+  if [[ -n "${LINUX_TO_GO_NOMACHINE_DEB:-}" && ! -f "$LINUX_TO_GO_NOMACHINE_DEB" ]]; then
+    log_error "Specified NoMachine package does not exist: $LINUX_TO_GO_NOMACHINE_DEB"
+    return 1
+  fi
   if local_pkg="$(find_nomachine_local_package "$arch" 2>/dev/null)"; then
     log_install "NoMachine from local package: $local_pkg"
-    validate_deb_architecture "$local_pkg" "$arch"
+    validate_deb_architecture "$local_pkg" "$arch" || return 1
     checksum="$(nomachine_asset_sha256 "$arch")"
     if [[ -n "$checksum" && "$(basename "$local_pkg")" == "$(nomachine_asset_name "$arch")" ]]; then
-      verify_sha256 "$local_pkg" "$checksum"
+      verify_sha256 "$local_pkg" "$checksum" || return 1
     fi
-    run_as_root apt-get install -y "$local_pkg"
+    apt_install "$local_pkg" || return 1
     log_ok "NoMachine installed"
     return 0
   fi
 
+  # Detect this before downloading anything or reporting installation success.
+  if [[ "$arch" == "amd64" ]]; then
+    nomachine_asset_url "$arch" >/dev/null
+    return 1
+  fi
+
   local asset source_label
   asset="$(nomachine_asset_name "$arch")" || { log_error "No NoMachine package for $arch"; return 1; }
-  source_label="official NoMachine download service"
-  [[ "$arch" == "arm64" ]] && source_label="Linux_togo GitHub Release"
+  source_label="Linux_togo GitHub Release"
   log_install "NoMachine ${NOMACHINE_VERSION} ($arch) from ${source_label}"
-  (
+  if (
     set -Eeuo pipefail
-    local_tmp="$(mktemp -d)"
+    local_tmp="$(mktemp -d)" || exit 1
     trap 'rm -rf "$local_tmp"' EXIT
-    _download_nomachine "$arch" "$local_tmp/$asset"
-    validate_deb_architecture "$local_tmp/$asset" "$arch"
+    _download_nomachine "$arch" "$local_tmp/$asset" || exit 1
     checksum="$(nomachine_asset_sha256 "$arch")"
-    [[ -z "$checksum" ]] || verify_sha256 "$local_tmp/$asset" "$checksum"
-    run_as_root apt-get install -y "$local_tmp/$asset"
-  )
+    [[ -z "$checksum" ]] || verify_sha256 "$local_tmp/$asset" "$checksum" || exit 1
+    apt_install "$local_tmp/$asset" || exit 1
+  ); then
+    :
+  else
+    return 1
+  fi
   log_ok "NoMachine ${NOMACHINE_VERSION} installed"
 }

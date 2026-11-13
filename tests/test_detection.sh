@@ -66,9 +66,9 @@ assert_failure "Clash unsupported arch rejected" clash_asset_name armhf
 source "$ROOT_DIR/lib/nomachine.sh"
 assert_eq "nomachine_9.8.3_1_amd64.deb" "$(nomachine_asset_name amd64)" "NoMachine amd64 asset"
 assert_eq "nomachine_9.8.3_1_arm64.deb" "$(nomachine_asset_name arm64)" "NoMachine arm64 asset"
-assert_eq "https://download.nomachine.com/download/9.8/Linux/nomachine_9.8.3_1_amd64.deb" "$(nomachine_asset_url amd64)" "NoMachine official amd64 URL"
+assert_failure "NoMachine invalid amd64 vendor endpoint is not used" nomachine_asset_url amd64
 assert_eq "https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb" "$(nomachine_asset_url arm64)" "NoMachine Linux_togo ARM64 release URL"
-assert_eq "https://web9001.nomachine.com/download/9.8/Arm/nomachine_9.8.3_1_arm64.deb" "$(nomachine_fallback_url arm64)" "NoMachine ARM64 official fallback URL"
+assert_failure "NoMachine retired official fallback is not used" nomachine_fallback_url arm64
 assert_eq "be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad" "$(nomachine_asset_sha256 arm64)" "NoMachine uploaded arm64 checksum"
 
 tmp_nm="$(mktemp -d)"

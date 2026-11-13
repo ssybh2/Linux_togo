@@ -1,213 +1,85 @@
-# Linux To Go
+# Linux To Go：安装说明
 
-[English](./README.md)
+[首页与安装命令](README.md) · [English](README_EN.md)
 
-`Linux To Go` 用于把一台刚安装好的 Ubuntu 电脑快速配置成机器人开发环境。完成一次 bootstrap 后，用户只需要一条命令，就可以自动处理基础工具、**Clash Verge Rev 2.5.2**、**NoMachine 9.8.3** 和对应的 ROS 环境。
+## 选择模式
 
-## 支持关系
+支持 Ubuntu 20.04 / 22.04 的 amd64、arm64 设备。Intel Core i5 的 Dell 电脑属于 amd64，可用 `dpkg --print-architecture` 确认。
 
-| Ubuntu | 命令 | ROS 目标 |
+| 场景 | 命令 |
+|---|---|
+| 已有 ROS，只安装 Clash Verge 和 NoMachine | `linux-to-go --apps-only` |
+| 只检查现状，不安装软件 | `linux-to-go --check` |
+| Ubuntu 20.04，需要安装 ROS 1 Noetic | `linux-to-go -ros1` |
+| Ubuntu 22.04，需要安装 ROS 2 Humble | `linux-to-go -ros2` |
+
+`sudo ./install.sh` 将入口安装到 `/usr/local/bin/linux-to-go`，模块安装到 `/usr/local/lib/linux-to-go/`。之后使用普通登录用户运行命令，需要安装系统包时会调用 sudo。
+
+## 已有 Humble 的 Intel / AMD 电脑
+
+原 NoMachine 9.8.3 amd64 官方地址已返回网页，不能继续当作 DEB 安装。本仓库 Release 目前仅有 ARM64 包。
+
+请将旧电脑上已获得的可信 `nomachine_*_amd64.deb` 复制到新电脑。如果文件是 `nomachine_9.7.3_1_amd64.deb`，可执行：
+
+```bash
+dpkg-deb -f "$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" Package Version Architecture
+# 应显示 nomachine、9.7.3-1、amd64
+
+LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
+linux-to-go --check
+sudo /usr/NX/bin/nxserver --status
+```
+
+路径必须指向实际文件，也可以使用其他已获得的可信 NoMachine amd64 版本。明确指定不存在的文件、错误包名或错误架构时，脚本停止，不回退到其他下载。未知本地版本没有内置 SHA-256，元数据检查不能代替来源可信性验证。
+
+NoMachine 已安装时无需指定安装包。仓库内直接运行 `./bin/linux-to-go --apps-only` 时，也会查找 `packages/` 中匹配架构的包；安装后的全局命令请使用上面的显式路径。
+
+`--apps-only` 仅补齐缺少的 `ca-certificates`、`curl`，再安装应用及必需运行依赖，不额外安装 `build-essential` 等编译工具，也不调用 ROS 安装、ROS 软件源配置或 shell 环境修改流程。APT 仍可能安装或升级应用所需的共享运行库。
+
+## Clash Verge Rev
+
+固定安装[官方 Release v2.5.2](https://github.com/clash-verge-rev/clash-verge-rev/releases/tag/v2.5.2)：
+
+| 架构 | 文件 | SHA-256 |
 |---|---|---|
-| **Ubuntu 20.04 LTS** | `linux-to-go -ros1` | **ROS 1 Noetic** |
-| **Ubuntu 22.04 LTS** | `linux-to-go -ros2` | **ROS 2 Humble** |
+| amd64 | `Clash.Verge_2.5.2_amd64.deb` | `035c83ed14b16df1dd397e5d710b34bedd5d27beb6678549ceaeeadf9bc167ed` |
+| arm64 | `Clash.Verge_2.5.2_arm64.deb` | `598a5a852d7bf9dc40a976780ef2afc9a4e5bfe7b99533e5f956f9e2f9def72f` |
 
-当前支持 **amd64** 和 **arm64**。
+脚本校验下载内容的 SHA-256、DEB 包名 `clash-verge`、版本和架构，然后通过 APT 安装运行依赖。不会编译 Clash 源码。
 
-版本关系采用严格匹配：Ubuntu 22.04 执行 `-ros1`，或 Ubuntu 20.04 执行 `-ros2`，都会在开始安装软件之前直接停止并提示正确命令。
+安装后从应用菜单以普通用户启动，导入自己的订阅、选择节点，再按需要开启系统代理或 TUN。安装工具不提供订阅，不自动更改系统代理、路由或防火墙。详见[官方安装文档](https://www.clashverge.dev/install.html)。
 
-## 一分钟开始
+## NoMachine ARM64
 
-```bash
-git clone https://github.com/ssybh2/Linux_togo.git
-cd Linux_togo
-sudo ./install.sh
-```
-
-之后使用普通登录用户运行：
-
-```bash
-# Ubuntu 20.04
-linux-to-go -ros1
-
-# Ubuntu 22.04
-linux-to-go -ros2
-```
-
-同时支持：
-
-```bash
-linux-to-go --ros1
-linux-to-go --ros2
-```
-
-## 一条命令会完成什么
+ARM64 自动使用[本仓库 Release](https://github.com/ssybh2/Linux_togo/releases/tag/nomachine)：
 
 ```text
-linux-to-go -ros1 / -ros2
-        |
-        +-- 检测 Ubuntu 版本与 CPU 架构
-        +-- 检查 Ubuntu / ROS 是否匹配
-        +-- 安装缺少的基础工具
-        +-- 检查并安装 Clash Verge Rev 2.5.2
-        +-- 检查并安装 NoMachine 9.8.3
-        |     +-- 已安装 -> SKIP
-        |     +-- arm64 -> 本仓库 GitHub Release -> SHA-256 -> apt 安装
-        |     +-- amd64 -> NoMachine 官方源 -> apt 安装
-        |     +-- ARM64 Release 下载失败 -> 回退 NoMachine 官方源
-        +-- 只检查命令指定的 ROS 家族
-              +-- 已安装 -> SKIP
-              +-- 未安装 -> 安装 Noetic 或 Humble
+文件：nomachine_9.8.3_1_arm64.deb
+Package: nomachine
+Version: 9.8.3-1
+Architecture: arm64
+SHA-256: be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad
 ```
 
-整个安装流程按照幂等方式设计：已经存在的组件会跳过，不会主动重复安装。
+下载失败会停止并提示提供本地包，已移除失效的官方回退地址。不会自动换装需要激活的新版 [NoMachine Personal Edition](https://download.nomachine.com/personal-edition/)。
 
-## Clash Verge Rev 2.5.2
-
-Linux To Go 固定使用 **Clash Verge Rev v2.5.2**，从 Clash Verge Rev 官方 GitHub Release 下载。
-
-| 架构 | 安装包 | SHA-256 |
-|---|---|---|
-| amd64 | [Clash.Verge_2.5.2_amd64.deb](https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.5.2/Clash.Verge_2.5.2_amd64.deb) | `035c83ed14b16df1dd397e5d710b34bedd5d27beb6678549ceaeeadf9bc167ed` |
-| arm64 | [Clash.Verge_2.5.2_arm64.deb](https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.5.2/Clash.Verge_2.5.2_arm64.deb) | `598a5a852d7bf9dc40a976780ef2afc9a4e5bfe7b99533e5f956f9e2f9def72f` |
-
-下载后会先校验 SHA-256，再执行安装。
-
-## NoMachine 9.8.3
-
-NoMachine 已经正式封装进 **`linux-to-go -ros1` 和 `linux-to-go -ros2`** 两条流程。
-
-### ARM64：自动从本仓库 Release 下载
-
-本仓库 Release 中已经有：
-
-| 架构 | 安装包 | SHA-256 |
-|---|---|---|
-| arm64 | [nomachine_9.8.3_1_arm64.deb](https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb) | `be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad` |
-
-Release 页面：<https://github.com/ssybh2/Linux_togo/releases/tag/nomachine>
-
-ARM64 设备正常执行 `linux-to-go` 时**不需要手动下载**。如果系统中没有 NoMachine，脚本会自动执行：
-
-```text
-Linux_togo GitHub Release
-    -> 下载 nomachine_9.8.3_1_arm64.deb
-    -> 校验 SHA-256
-    -> 检查 DEB Architecture=arm64
-    -> sudo apt-get install
-```
-
-如果本仓库 Release 暂时下载失败，会自动回退到配置好的 NoMachine 官方 ARM64 下载地址。
-
-如果希望手动安装，也可以：
+## NoMachine 连接检查
 
 ```bash
-wget https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb
-sudo apt install ./nomachine_9.8.3_1_arm64.deb
+sudo /usr/NX/bin/nxserver --status
+hostname -I
 ```
 
-### AMD64
+安装包通常自动启动服务。另一台电脑安装 NoMachine 客户端，在相同局域网内用这里的 IP、默认 TCP 4000、目标 Ubuntu 的用户名和密码连接。服务状态正常后再排查网络可达性和桌面会话。脚本不自动修改防火墙或切换 Wayland/Xorg。
 
-目前 `Linux_togo` 自己的 Release 里只有 ARM64 包。因此普通 Intel / AMD x86-64 电脑运行 `linux-to-go` 时，会继续从 NoMachine 配置的官方下载服务获取 `nomachine_9.8.3_1_amd64.deb`。
+参考：[官方 Linux DEB 安装说明](https://kb.nomachine.com/AR01L00775)。
 
-### 本地安装包覆盖
+## ROS 与更新
 
-如果需要，仍然可以指定本地 NoMachine DEB：
+已有 Humble 时推荐使用 `--apps-only`，即使当前终端没有 source ROS 也可使用。
 
-```bash
-LINUX_TO_GO_NOMACHINE_DEB=/绝对路径/nomachine_9.8.3_1_arm64.deb \
-  linux-to-go -ros2
-```
+保留的 `-ros1` / `-ros2` 模式会检测目标 ROS，已存在则跳过；不存在时安装对应 desktop 与开发工具，并配置 `.bashrc`。本次未在全新系统执行完整 ROS 安装验证；全新 ROS 环境请同时参考 [ROS Humble 官方文档](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html)。
 
-安装前脚本会用 `dpkg-deb` 检查软件包架构，避免把 ARM64 包安装到 amd64 电脑上。
+更新方法见[首页](README.md#更新)。已安装应用会跳过，更新脚本不等于升级应用。APT 被占用时等待其他安装任务完成，不删除 lock 文件。
 
-## ROS：先检测，没装才安装
-
-工具不会无条件重新安装 ROS。
-
-执行 `linux-to-go -ros1` 时，只检查 **ROS 1**。已经安装 ROS 1 就直接跳过；没有安装时，在 Ubuntu 20.04 上安装 **ROS Noetic**。
-
-执行 `linux-to-go -ros2` 时，只检查 **ROS 2**。已经安装 ROS 2 就直接跳过；没有安装时，在 Ubuntu 22.04 上安装 **ROS 2 Humble**。
-
-检测不仅依赖当前终端有没有 `source` ROS，还会检查 `/opt/ros`、ROS 命令和 Debian 软件包状态，因此新终端也能识别已有 ROS。
-
-### Ubuntu 20.04 / ROS 1 Noetic
-
-```bash
-linux-to-go -ros1
-```
-
-ROS 1 不存在时，脚本安装 Noetic desktop 与常用开发工具，必要时初始化 `rosdep`，并且只向登录用户的 `~/.bashrc` 添加一次：
-
-```bash
-source /opt/ros/noetic/setup.bash
-```
-
-### Ubuntu 22.04 / ROS 2 Humble
-
-```bash
-linux-to-go -ros2
-```
-
-ROS 2 不存在时，脚本安装 `ros-humble-desktop`、`ros-dev-tools`，必要时初始化 `rosdep`，并且只向 `~/.bashrc` 添加一次：
-
-```bash
-source /opt/ros/humble/setup.bash
-```
-
-## 仓库结构
-
-```text
-Linux_togo/
-├── README.md
-├── README_CN.md
-├── install.sh
-├── bin/linux-to-go
-├── lib/
-│   ├── common.sh
-│   ├── system.sh
-│   ├── clash-verge.sh
-│   ├── nomachine.sh
-│   └── ros.sh
-├── packages/
-├── tests/test_detection.sh
-└── docs/
-```
-
-`sudo ./install.sh` 会把命令安装到 `/usr/local/bin/linux-to-go`，运行模块放到 `/usr/local/lib/linux-to-go/`。
-
-## 更新 Linux To Go
-
-```bash
-cd Linux_togo
-git pull
-sudo ./install.sh
-```
-
-然后重新运行对应的 `-ros1` 或 `-ros2`。已经存在的软件会按照检测结果跳过。
-
-## 常见问题
-
-如果提示 `linux-to-go: command not found`，重新执行 `sudo ./install.sh`，然后检查：
-
-```bash
-command -v linux-to-go
-```
-
-如果 Ubuntu / ROS 参数不匹配，请按照本文最上方的版本表选择命令，不建议强行绕过。
-
-如果 APT 被锁定，请等待其他 `apt` / `dpkg` 操作正常结束，不要手动删除 lock 文件。
-
-查看本地 NoMachine 包架构：
-
-```bash
-dpkg-deb -f /path/to/nomachine.deb Package Version Architecture
-```
-
-## 开发与测试
-
-```bash
-bash -n install.sh bin/linux-to-go lib/*.sh tests/test_detection.sh
-bash tests/test_detection.sh
-```
-
-测试覆盖 Ubuntu / ROS 严格匹配、已有 ROS 时跳过安装、amd64 / arm64 架构选择、Clash Verge 包与校验值，以及 **NoMachine ARM64 从 Linux_togo Release 自动下载并保留官方回退地址**的逻辑。
+测试方法与范围见[首页](README.md#测试)和[审查记录](docs/install-audit.md)。

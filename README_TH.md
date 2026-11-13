@@ -46,7 +46,18 @@ cd Linux_togo
 sudo ./install.sh
 ```
 
-หลังจากติดตั้ง:
+หากติดตั้ง ROS แล้ว ให้ใช้ `--apps-only` โดยไม่แก้ไขการตั้งค่า ROS หรือเพิ่มเครื่องมือคอมไพล์
+
+Intel Core i5 ใช้ **amd64** กรุณาคัดลอกไฟล์ติดตั้ง NoMachine เดิมที่เชื่อถือได้มายังเครื่องใหม่ก่อน เพราะ URL ทางการของรุ่นเก่าใช้งานไม่ได้แล้ว:
+
+```bash
+LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
+linux-to-go --check
+```
+
+ถ้าติดตั้ง NoMachine แล้วหรือใช้ ARM64 ให้เรียก `linux-to-go --apps-only` ได้โดยตรง ไม่มีการเปลี่ยนเป็น Personal Edition รุ่นใหม่โดยอัตโนมัติ ดูรายละเอียดที่ [English](README_EN.md)
+
+หากต้องการติดตั้ง ROS ด้วย:
 
 Ubuntu 20.04:
 
@@ -90,7 +101,7 @@ linux-to-go
 
 ### 🖥 NoMachine 9.8.3
 
-- รองรับ ARM64 และ AMD64
+- ARM64 ดาวน์โหลดจาก Release; AMD64 ต้องใช้ไฟล์ DEB ที่เชื่อถือได้ในเครื่อง
 - ตรวจสอบ architecture อัตโนมัติ
 
 ### 🤖 ROS Management
@@ -131,7 +142,7 @@ Linux_togo/
 
 ```bash
 cd Linux_togo
-git pull
+git pull --ff-only
 sudo ./install.sh
 ```
 

@@ -48,13 +48,18 @@ install_clash_verge() {
   checksum="$(clash_asset_sha256 "$arch")"
 
   log_install "Clash Verge Rev ${CLASH_VERGE_VERSION} ($arch)"
-  (
+  if (
     set -Eeuo pipefail
-    local_tmp="$(mktemp -d)"
+    local_tmp="$(mktemp -d)" || exit 1
     trap 'rm -rf "$local_tmp"' EXIT
-    download_file "$url" "$local_tmp/$asset"
-    verify_sha256 "$local_tmp/$asset" "$checksum"
-    run_as_root apt-get install -y "$local_tmp/$asset"
-  )
+    download_file "$url" "$local_tmp/$asset" || exit 1
+    verify_sha256 "$local_tmp/$asset" "$checksum" || exit 1
+    validate_deb_package "$local_tmp/$asset" clash-verge "$arch" "$CLASH_VERGE_VERSION" || exit 1
+    apt_install "$local_tmp/$asset" || exit 1
+  ); then
+    :
+  else
+    return 1
+  fi
   log_ok "Clash Verge Rev ${CLASH_VERGE_VERSION} installed"
 }
