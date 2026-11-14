@@ -72,3 +72,12 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 测试使用临时 DEB 和模拟 APT/网络命令，不安装系统软件。[审查记录](docs/install-audit.md)。
+## add terminal VPN stream from clashverge
+export http_proxy="http://127.0.0.1:7897"
+export https_proxy="http://127.0.0.1:7897"
+export all_proxy="socks5h://127.0.0.1:7897"
+
+export HTTP_PROXY="$http_proxy"
+export HTTPS_PROXY="$https_proxy"
+export ALL_PROXY="$all_proxy"
+
