@@ -81,3 +81,13 @@ export HTTP_PROXY="$http_proxy"
 export HTTPS_PROXY="$https_proxy"
 export ALL_PROXY="$all_proxy"
 
+## Codex
+download by this cmd: <br>
+```bash
+curl -fsSL https://chatgpt.com/codex/install.sh | sh
+```
+## Launch codex
+```bash 
+source ~/.bashrc <br>
+export PATH="$HOME/.local/bin:$PATH"
+```
