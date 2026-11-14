@@ -1,0 +1,126 @@
+MATLAB R2023b + EtherCAT 自定义 ROS 2 消息：新电脑安装教程
+适用环境：Ubuntu 22.04、ROS 2 Humble 已安装；~/Downloads 中已有 matlab_R2023b_glnxa64.zip。
+下面的命令在普通用户的桌面终端运行，不要进入 root shell。请逐节执行；只有标明 sudo 的命令需要管理员密码。
+
+一、准备工具和 MATLAB 安装器
+
+sudo apt update
+sudo apt install -y unzip git build-essential cmake python3.10-venv gcc-10 g++-10
+cd ~/Downloads
+mkdir -p matlab_R2023b_glnxa64
+unzip -n matlab_R2023b_glnxa64.zip -d matlab_R2023b_glnxa64
+cd matlab_R2023b_glnxa64
+test -x ./install && echo '找到 MATLAB 安装程序'
+
+这个约 194 MB 的 ZIP 是安装器；运行 ./install 后，安装器仍可能联网下载所选产品。确保网络畅通、磁盘有足够空间。
+
+二、安装 MATLAB（使用个人账号，避免把用户配置写成 root 所有）
+
+本工程已有的 ROS 2 代码引用 /usr/local/MATLAB/R2023b，因此采用这个安装路径。
+只在新电脑上、确认该路径尚未安装时执行：
+
+test ! -e /usr/local/MATLAB/R2023b || echo '目标目录已存在：先检查现有安装，不要覆盖'
+sudo mkdir -p /usr/local/MATLAB/R2023b
+sudo chown "$USER:$(id -gn)" /usr/local/MATLAB/R2023b
+./install
+
+在图形安装器中：用有授权的 MathWorks 账号登录（学校许可用学校账号）；
+选择 R2023b 对应许可；安装目录填 /usr/local/MATLAB/R2023b；
+至少选 MATLAB、Simulink、ROS Toolbox。需要从 Simulink 重新生成独立 ROS 2 节点时，再按许可选 Simulink Coder 和 Embedded Coder。
+安装完成后确认：
+
+test -x /usr/local/MATLAB/R2023b/bin/matlab && echo 'MATLAB 安装成功'
+env -u LD_LIBRARY_PATH -u MLM_LICENSE_FILE /usr/local/MATLAB/R2023b/bin/matlab -batch "disp(version); disp(which('ros2genmsg'))"
+
+说明：env -u ... 仅对这次 MATLAB 启动生效。它避开 ROS/其他软件设置的 LD_LIBRARY_PATH 和旧的 MLM_LICENSE_FILE，避免库冲突或误用已失效的网络许可证。
+以后启动图形界面：
+
+env -u LD_LIBRARY_PATH -u MLM_LICENSE_FILE /usr/local/MATLAB/R2023b/bin/matlab -desktop
+
+三、取得 EtherCAT 消息的源文件
+
+如果电脑上已有 ~/Ecat-Ground-Station/src/EcatV2_Master，跳过下面的 git clone。
+否则执行：
+
+mkdir -p ~/Ecat-Ground-Station/src
+git clone https://github.com/AIMEtherCAT/EcatV2_Master.git ~/Ecat-Ground-Station/src/EcatV2_Master
+
+确认消息包：
+
+ls ~/Ecat-Ground-Station/src/EcatV2_Master/src/custom_msgs/msg/*.msg
+ls ~/Ecat-Ground-Station/src/EcatV2_Master/src/custom_msgs/srv/*.srv
+find ~/Ecat-Ground-Station/src/EcatV2_Master/src/custom_msgs/msg -name '*.msg' | wc -l
+find ~/Ecat-Ground-Station/src/EcatV2_Master/src/custom_msgs/srv -name '*.srv' | wc -l
+
+当前工程应有 31 个 .msg 和 4 个 .srv。实际数量以下载版本为准。
+注意：F450/src/simulink/src/custom_msgs 只含该模型用到的 2 个消息；要识别全部 EtherCAT 消息，必须使用上面 EcatV2_Master 中的完整 custom_msgs 包。
+
+四、让 MATLAB/Simulink 识别全部消息（首次安装执行一次）
+
+source /opt/ros/humble/setup.bash
+env -u LD_LIBRARY_PATH -u MLM_LICENSE_FILE /usr/local/MATLAB/R2023b/bin/matlab -batch "ros2genmsg(fullfile(getenv('HOME'),'Ecat-Ground-Station','src','EcatV2_Master','src'))"
+
+ros2genmsg 会编译所有消息和服务，第一次可能花几分钟。看到 Build succeeded 才算成功。
+生成结果位于：
+
+~/Ecat-Ground-Station/src/EcatV2_Master/src/matlab_msg_gen/glnxa64/install/m
+
+将生成路径加入 MATLAB 的启动脚本，使以后每次启动都能识别。下面两条命令不会覆盖已有 startup.m：
+
+mkdir -p ~/Documents/MATLAB
+printf "addpath(fullfile(getenv('HOME'),'Ecat-Ground-Station','src','EcatV2_Master','src','matlab_msg_gen','glnxa64','install','m'));\n" >> ~/Documents/MATLAB/startup.m
+
+如果之前已写过同一行，不要重复追加。关闭并重新打开 MATLAB，再验证：
+
+env -u LD_LIBRARY_PATH -u MLM_LICENSE_FILE /usr/local/MATLAB/R2023b/bin/matlab -batch "m=ros2message('custom_msgs/ReadSBUSRC'); n=ros2message('custom_msgs/WriteOnBoardPWM'); disp(m.MessageType); disp(n.MessageType); disp(ros2type.getServiceList())"
+
+MATLAB 命令窗口中可进一步查看全部消息类型：
+
+ros2 msg list
+
+五、打开 F450 的 Simulink 模型
+
+如果电脑上尚无 ~/F450，可先在终端取得模型仓库：
+
+git clone https://github.com/ssybh2/F450.git ~/F450
+
+如果 ~/F450 已存在，跳过 git clone，不要覆盖现有文件。
+
+在 MATLAB 命令窗口执行：
+
+cd(fullfile(getenv('HOME'),'F450','src','simulink'))
+run('Init_control450.m')
+open_system('softdrone_pid.slx')
+
+Init_control450.m 定义模型用到的 Kp_ANGLE 等参数。忘记运行会导致模型更新失败，但不表示自定义消息生成失败。
+
+六、ROS 2 工作区与 EtherCAT 节点
+
+MATLAB 识别消息类型，不代表 EtherCAT 设备或话题已经运行。要查看实时话题，在另一终端执行：
+
+source /opt/ros/humble/setup.bash
+source ~/Ecat-Ground-Station/install/setup.bash
+ros2 interface list | grep '^    custom_msgs/'
+ros2 topic list | grep /ecat/
+
+若 ~/Ecat-Ground-Station/install/setup.bash 不存在，说明该 ROS 2 工作区还未构建；仅为 MATLAB 生成消息接口并不要求先构建整个工作区。要运行 EtherCAT 节点时，再按 EcatV2_Master 项目说明构建、配置网卡和设备。
+
+七、修改 .msg/.srv 之后
+
+消息定义发生变化时，重新运行第四节的 ros2genmsg 命令，然后重启 MATLAB。ROS 2 工作区也要重新构建相应消息包，以保持两侧定义一致。
+
+常见问题
+
+1. ros2genmsg 提示 ensurepip 不可用：执行 sudo apt install python3.10-venv。
+2. 提示 gcc-11 与 ROS Toolbox 不兼容：执行 sudo apt install gcc-10 g++-10；无需改变系统默认 gcc。
+3. 报错 5201/5013：先检查 ~/.MathWorks、~/.MATLABConnector、~/.pki 是否属于当前用户：
+   stat -c '%U:%G %n' ~/.MathWorks ~/.MATLABConnector ~/.pki
+   若因以前使用 sudo 启动 MATLAB 而出现 root 所有，可执行：
+   sudo chown -R "$USER:$(id -gn)" ~/.MathWorks ~/.MATLABConnector ~/.pki
+   然后按第二节的 env -u ... 命令重新启动。若仍失败，参照 MathWorks 的 Service Host 重装说明，不要删除 MATLAB 主程序。
+4. 如果使用校园网络许可证，必须先连接校园网/VPN，并确认许可证服务器可解析、可连接；若使用 MathWorks 账号在线许可，不要强制设置旧的 MLM_LICENSE_FILE。
+
+官方资料：
+https://www.mathworks.com/help/install/ug/install-products-with-internet-connection.html
+https://www.mathworks.com/help/ros/ug/ros2-custom-message-support.html
+https://www.mathworks.com/matlabcentral/answers/1815365-how-do-i-uninstall-and-reinstall-the-mathworks-service-host
