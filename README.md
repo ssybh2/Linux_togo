@@ -66,6 +66,7 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 自动测试拦截 APT、网络和 sudo，使用临时 DEB，不更改本机软件环境。四个实际 Release 包及 ROS官方软件源包的校验、图形界面预览已经检查；全新系统完整安装仍需在目标机器验证。详见 [验证记录](docs/bootstrap-validation.md)。
 
 ## add terminal VPN stream from clashverge
+```bash
 export http_proxy="http://127.0.0.1:7897"
 export https_proxy="http://127.0.0.1:7897"
 export all_proxy="socks5h://127.0.0.1:7897"
@@ -73,7 +74,7 @@ export all_proxy="socks5h://127.0.0.1:7897"
 export HTTP_PROXY="$http_proxy"
 export HTTPS_PROXY="$https_proxy"
 export ALL_PROXY="$all_proxy"
-
+```
 ## Codex
 download by this cmd: <br>
 ```bash
@@ -81,6 +82,6 @@ curl -fsSL https://chatgpt.com/codex/install.sh | sh
 ```
 ## Launch codex
 ```bash 
-source ~/.bashrc <br>
+source ~/.bashrc 
 export PATH="$HOME/.local/bin:$PATH"
 ```
