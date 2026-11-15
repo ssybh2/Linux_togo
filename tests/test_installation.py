@@ -50,7 +50,7 @@ if [[ "${LTG_FAIL_APT:-0}" == 1 && "$1" == install ]]; then exit 42; fi''')
     def operations(self):
         return self.log.read_text() if self.log.exists() else ''
 
-    def deb(self, name='nomachine', version='9.7.3-1', arch='amd64'):
+    def deb(self, name='nomachine', version='9.7.2-1', arch='amd64'):
         directory = self.root / (name + '-' + arch + '-' + version)
         (directory / 'DEBIAN').mkdir(parents=True)
         (directory / 'DEBIAN/control').write_text(
@@ -73,7 +73,7 @@ if [[ "${LTG_FAIL_APT:-0}" == 1 && "$1" == install ]]; then exit 42; fi''')
         result = subprocess.run([str(prefix / 'bin/linux-to-go'), '--apps-only'],
                                 env=self.env, text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('Apps-only', result.stdout)
+        self.assertIn('mode=--apps-only', result.stdout)
         self.assertFalse(self.operations())
 
     def test_apps_only_never_calls_ros_installation_or_environment_setup(self):
@@ -99,11 +99,11 @@ clash_asset_sha256() { sha256sum "$LTG_TEST_CLASH_DEB" | awk '{print $1}'; }
         result = self.run_bash('bin/linux-to-go --apps-only',
             LINUX_TO_GO_LIB_DIR=str(library), LTG_TEST_CLASH_PRESENT='0',
             LTG_TEST_NOMACHINE_PRESENT='0', LTG_TEST_ROS2_PRESENT='1',
-            LTG_TEST_CLASH_DEB=self.deb('clash-verge', '2.5.2'),
+            LTG_TEST_CLASH_DEB=self.deb('clash-verge', '2.5.10'),
             LINUX_TO_GO_NOMACHINE_DEB=self.deb())
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Linux To Go completed', result.stdout)
-        self.assertEqual(self.operations().count('apt install '), 2)
+        self.assertEqual(self.operations().count('apt install --no-remove '), 2)
         self.assertNotIn('ROS MUTATION', self.operations())
         self.assertNotIn('unexpected network', self.operations())
 
@@ -111,18 +111,19 @@ clash_asset_sha256() { sha256sum "$LTG_TEST_CLASH_DEB" | awk '{print $1}'; }
         result = self.run_bash('bin/linux-to-go --check', LTG_TEST_CLASH_PRESENT='0',
                                LTG_TEST_NOMACHINE_PRESENT='0', LTG_TEST_ROS2_PRESENT='0')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('not installed', result.stderr)
+        self.assertIn('missing', result.stdout)
         self.assertFalse(self.operations())
 
     def test_unsupported_os_fails_before_changes(self):
-        result = self.run_bash('bin/linux-to-go --apps-only', LTG_TEST_UBUNTU_VERSION='24.04')
+        result = self.run_bash('bin/linux-to-go --apps-only', LTG_TEST_UBUNTU_VERSION='21.10')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.operations())
 
-    def test_missing_amd64_nomachine_fails_before_clash_download(self):
-        result = self.run_bash('bin/linux-to-go --apps-only', LTG_TEST_NOMACHINE_PRESENT='0', LTG_TEST_CLASH_PRESENT='0')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('LINUX_TO_GO_NOMACHINE_DEB', result.stderr)
+    def test_amd64_no_longer_requires_local_nomachine(self):
+        result = self.run_bash('bin/linux-to-go --apps-only --dry-run',
+                               LTG_TEST_NOMACHINE_PRESENT='0', LTG_TEST_CLASH_PRESENT='0')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('releases/download/amd64/nomachine_9.7.3_1_amd64.deb', result.stdout)
         self.assertFalse(self.operations())
 
     def test_apps_only_dependencies_are_minimal_and_missing_only(self):
@@ -156,8 +157,8 @@ if install_nomachine; then exit 91; else exit 0; fi''',
         result = self.module('nomachine', 'LTG_ARCH=amd64; install_nomachine',
                              LTG_TEST_NOMACHINE_PRESENT='0', LINUX_TO_GO_NOMACHINE_DEB=self.deb())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('apt update', self.operations())
-        self.assertIn('apt install -y --no-install-recommends', self.operations())
+        self.assertIn('DPkg::Lock::Timeout=120 update', self.operations())
+        self.assertIn('apt install --no-remove -y --no-install-recommends', self.operations())
         self.assertNotIn('unexpected network', self.operations())
 
     def test_nomachine_apt_failure_never_reports_success(self):
@@ -189,32 +190,57 @@ if _download_nomachine arm64 "$LTG_TEST_OUTPUT"; then exit 91; else exit 0; fi''
         result = self.module('clash-verge', '''LTG_ARCH=amd64
 download_file() { cp "$LTG_TEST_DEB" "$2"; }
 if install_clash_verge; then exit 91; else exit 0; fi''',
-            LTG_TEST_CLASH_PRESENT='0', LTG_TEST_DEB=self.deb('clash-verge', '2.5.2'))
+            LTG_TEST_CLASH_PRESENT='0', LTG_TEST_DEB=self.deb('clash-verge', '2.5.10'))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('SHA-256 mismatch', result.stderr)
         self.assertFalse(self.operations())
 
     def test_clash_success_and_apt_failure_do_not_report_false_success(self):
-        package = self.deb('clash-verge', '2.5.2')
+        package = self.deb('clash-verge', '2.5.10')
         code = '''LTG_ARCH=amd64
 download_file() { cp "$LTG_TEST_DEB" "$2"; }
 clash_asset_sha256() { sha256sum "$LTG_TEST_DEB" | awk '{print $1}'; }
 install_clash_verge'''
         result = self.module('clash-verge', code, LTG_TEST_CLASH_PRESENT='0', LTG_TEST_DEB=package)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('[OK] Clash Verge Rev 2.5.2 installed', result.stdout)
+        self.assertIn('[OK] Clash Verge Rev 2.5.10 installed', result.stdout)
         result = self.module('clash-verge', code, LTG_TEST_CLASH_PRESENT='0', LTG_TEST_DEB=package, LTG_FAIL_APT='1')
         self.assertNotEqual(result.returncode, 0)
-        self.assertNotIn('[OK] Clash Verge Rev 2.5.2 installed', result.stdout)
+        self.assertNotIn('[OK] Clash Verge Rev 2.5.10 installed', result.stdout)
 
-    def test_other_ros2_distribution_does_not_count_as_humble(self):
-        for distro in ('jazzy', 'unknown'):
-            with self.subTest(distro=distro):
-                result = self.module('ros', '''package_installed() { return 1; }
-command_exists() { [[ "$1" == ros2 ]]; }
-detect_ros2''', LTG_ROS_ROOT=str(self.root / 'empty-ros-root'), ROS_DISTRO=distro,
-                    LTG_TEST_ROS2_PRESENT='', LTG_TEST_DISABLE_COMMAND_DETECTION='0')
-                self.assertNotEqual(result.returncode, 0)
+    def test_both_architectures_download_apps_from_repository_releases(self):
+        for arch in ('amd64', 'arm64'):
+            with self.subTest(arch=arch):
+                library = self.root / ('lib-' + arch)
+                shutil.copytree(ROOT / 'lib', library)
+                cv = self.deb('clash-verge', '2.5.10', arch)
+                nm = self.deb('nomachine', '9.7.3-1' if arch == 'amd64' else '9.8.3-1', arch)
+                with (library / 'clash-verge.sh').open('a') as out:
+                    out.write("""
+download_file() {
+  printf 'download %s\\n' "$1" >> "$LTG_LOG"
+  case "$1" in *Clash.Verge*) cp "$LTG_TEST_CV" "$2" ;; *nomachine*) cp "$LTG_TEST_NM" "$2" ;; *) return 90 ;; esac
+}
+clash_asset_sha256() { sha256sum "$LTG_TEST_CV" | awk '{print $1}'; }
+""")
+                with (library / 'nomachine.sh').open('a') as out:
+                    out.write("""
+nomachine_asset_sha256() { sha256sum "$LTG_TEST_NM" | awk '{print $1}'; }
+""")
+                r = self.run_bash('bin/linux-to-go --apps-only', LINUX_TO_GO_LIB_DIR=str(library),
+                    LTG_TEST_ARCH=arch, LTG_TEST_CLASH_PRESENT='0', LTG_TEST_NOMACHINE_PRESENT='0',
+                    LTG_TEST_CV=cv, LTG_TEST_NM=nm, LTG_NOMACHINE_PACKAGE_DIR=str(self.root / 'empty'))
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn('Linux To Go completed', r.stdout)
+                self.assertIn('github.com/ssybh2/Linux_togo/releases/download/', self.operations())
+
+    def test_detects_sourced_jazzy_without_requiring_humble(self):
+        result = self.module('ros', '''command_exists() { [[ "$1" == ros2 ]]; }
+        detect_ros2; echo "$LTG_DETECTED_ROS2_DISTRO"''',
+            LTG_ROS_ROOT=str(self.root / 'empty-ros-root'), ROS_DISTRO='jazzy', ROS_VERSION='2',
+            LTG_TEST_ROS2_PRESENT='', LTG_TEST_DISABLE_COMMAND_DETECTION='0')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('jazzy', result.stdout)
 
 
 if __name__ == '__main__':

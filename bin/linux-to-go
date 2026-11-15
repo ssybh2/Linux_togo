@@ -2,94 +2,60 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -n "${LINUX_TO_GO_LIB_DIR:-}" ]]; then
-  LIB_DIR="$LINUX_TO_GO_LIB_DIR"
+if [[ -n "${LINUX_TO_GO_LIB_DIR:-}" ]]; then LIB_DIR="$LINUX_TO_GO_LIB_DIR"
 elif [[ -f "$SCRIPT_DIR/../lib/common.sh" ]]; then
   LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
-  : "${LTG_NOMACHINE_PACKAGE_DIR:=$(cd "$SCRIPT_DIR/.." && pwd)/packages}"
-  export LTG_NOMACHINE_PACKAGE_DIR
-elif [[ -f "$SCRIPT_DIR/../lib/linux-to-go/common.sh" ]]; then
-  LIB_DIR="$(cd "$SCRIPT_DIR/../lib/linux-to-go" && pwd)"
-else
-  LIB_DIR="/usr/local/lib/linux-to-go"
-fi
-
-for module in common system clash-verge nomachine ros; do
-  if [[ ! -r "$LIB_DIR/$module.sh" ]]; then
-    printf '[ERROR] Missing Linux To Go module: %s\n' "$LIB_DIR/$module.sh" >&2
-    exit 1
-  fi
-  # shellcheck disable=SC1090
+  export LTG_NOMACHINE_PACKAGE_DIR="${LTG_NOMACHINE_PACKAGE_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)/packages}"
+else LIB_DIR="$SCRIPT_DIR/../lib/linux-to-go"; fi
+for module in common system clash-verge nomachine ros wizard; do
+  [[ -r "$LIB_DIR/$module.sh" ]] || { echo "[ERROR] Missing module $module" >&2; exit 1; }
   source "$LIB_DIR/$module.sh"
 done
 
 usage() {
   cat <<'USAGE'
-Linux To Go - Ubuntu environment bootstrap
-
-Usage:
-  linux-to-go -ros1
-  linux-to-go --ros1
-  linux-to-go -ros2
-  linux-to-go --ros2
-  linux-to-go --apps-only   # Clash Verge + NoMachine; leave ROS unchanged
-  linux-to-go --check       # Read-only installed-component checks
-  linux-to-go --help
-
-Supported combinations:
-  Ubuntu 20.04 -> ROS 1 Noetic (-ros1)
-  Ubuntu 22.04 -> ROS 2 Humble (-ros2)
-
-Both amd64 and arm64 are supported.
+Linux To Go — clone and run ./setup.sh for the graphical installer
+linux-to-go [--gui | --auto | --ros1 | --ros2 | --apps-only | --check | --status]
+            [--skip-clash] [--skip-nomachine] [--dry-run]
+Ubuntu 20.04: ROS1 Noetic (EOL; Clash 2.5.10 unavailable)
+Ubuntu 22.04: ROS2 Humble; Ubuntu 24.04: ROS2 Jazzy
+Architecture: automatically detected amd64 / arm64.
+--dry-run prints the plan without sudo, downloads or system modifications.
 USAGE
 }
 
 main() {
-  if [[ $# -eq 1 && ( "$1" == "--help" || "$1" == "-h" ) ]]; then
-    usage
-    return 0
+  local mode='' skip_clash=0 skip_nm=0 dry_run=0 arg
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help) usage; return ;;
+      --skip-clash) skip_clash=1 ;;
+      --skip-nomachine) skip_nm=1 ;;
+      --dry-run) dry_run=1 ;;
+      -ros1|--ros1|-ros2|--ros2|--apps-only|--check|--status|--auto|--gui)
+        [[ -z "$mode" ]] || { log_error 'Choose only one mode'; return 2; }
+        case "$arg" in -ros1|--ros1) mode=ros1 ;; -ros2|--ros2) mode=ros2 ;; *) mode="$arg" ;; esac ;;
+      *) usage >&2; return 2 ;;
+    esac
+  done
+  mode="${mode:---gui}"
+  if [[ "$mode" == --gui ]]; then
+    exec /usr/bin/python3 "$LIB_DIR/installer_gui.py" "$SCRIPT_DIR/linux-to-go" "$([[ "$dry_run" == 1 ]] && echo --dry-run || echo --live)"
   fi
-
-  local mode
-  if [[ $# -eq 1 && ( "$1" == "--apps-only" || "$1" == "--check" ) ]]; then
-    mode="$1"
-  elif ! mode="$(parse_ros_mode "$@")"; then
-    log_error "Choose one mode: -ros1, -ros2, --apps-only, or --check."
-    usage >&2
-    return 2
-  fi
-
   detect_system
-  log_info "Ubuntu ${LTG_UBUNTU_VERSION} detected"
-  log_info "Architecture: ${LTG_ARCH}"
-
-  if [[ "$mode" == "--check" ]]; then
-    validate_supported_system
-    if clash_is_installed; then log_ok 'Clash Verge is installed'; else log_warn 'Clash Verge is not installed'; fi
-    if nomachine_is_installed; then log_ok 'NoMachine is installed'; else log_warn 'NoMachine is not installed'; fi
-    if detect_ros2; then log_ok "ROS 2 ${LTG_DETECTED_ROS2_DISTRO} detected"; else log_info 'ROS 2 Humble not detected'; fi
-    if detect_ros1; then log_ok "ROS 1 ${LTG_DETECTED_ROS1_DISTRO} detected"; else log_info 'ROS 1 Noetic not detected'; fi
-    return 0
-  fi
-
-  # Strict compatibility validation happens before any package changes.
-  if [[ "$mode" == "--apps-only" ]]; then
-    validate_supported_system
-    log_info 'Apps-only mode: ROS packages, ROS sources and shell configuration will not be changed.'
-  else
-    validate_ros_request "$mode"
-    log_info "Requested target: $(target_ros_distro "$mode")"
-  fi
-
-  # Catch a missing local amd64 package before any download or package change.
-  preflight_nomachine
+  if [[ "$mode" == --status ]]; then print_status; return; fi
+  validate_supported_system
+  if [[ "$mode" == --auto ]]; then mode="$(terminal_wizard)"; fi
+  if [[ "$mode" == --check ]]; then print_status; return; fi
+  [[ "$mode" == --apps-only ]] || validate_ros_request "$mode"
+  print_plan "$mode" "$skip_clash" "$skip_nm"
+  [[ "$dry_run" != 1 ]] || { log_ok 'Dry run completed; no changes made'; return; }
+  [[ "$skip_nm" == 1 ]] || preflight_nomachine
   install_common_packages "$mode"
-  install_clash_verge
-  install_nomachine
-  if [[ "$mode" != "--apps-only" ]]; then install_requested_ros "$mode"; fi
-
-  log_ok "Linux To Go completed"
-  log_info 'Open Clash Verge as your normal desktop user and import your own subscription. Check NoMachine with: sudo /usr/NX/bin/nxserver --status'
+  [[ "$skip_clash" == 1 ]] || install_clash_verge
+  [[ "$skip_nm" == 1 ]] || install_nomachine
+  [[ "$mode" == --apps-only ]] || install_requested_ros "$mode"
+  log_ok 'Linux To Go completed'
+  log_info 'Clash Verge: import your own subscription. NoMachine: sudo /usr/NX/bin/nxserver --status'
 }
-
 main "$@"

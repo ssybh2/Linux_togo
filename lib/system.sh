@@ -27,8 +27,8 @@ detect_system() {
 validate_supported_system() {
   [[ "${LTG_OS_ID:-}" == "ubuntu" ]] || { log_error "Linux To Go currently supports Ubuntu only."; return 1; }
   case "${LTG_UBUNTU_VERSION:-}" in
-    20.04|22.04) ;;
-    *) log_error "Unsupported Ubuntu version: ${LTG_UBUNTU_VERSION:-unknown}. Supported: 20.04, 22.04."; return 1 ;;
+    20.04|22.04|24.04) ;;
+    *) log_error "Unsupported Ubuntu version: ${LTG_UBUNTU_VERSION:-unknown}. Supported: 20.04, 22.04, 24.04."; return 1 ;;
   esac
   case "${LTG_ARCH:-}" in
     amd64|arm64) ;;
@@ -39,7 +39,7 @@ validate_supported_system() {
 target_ros_distro() {
   case "$1" in
     ros1) printf 'noetic\n' ;;
-    ros2) printf 'humble\n' ;;
+    ros2) case "${LTG_UBUNTU_VERSION:-22.04}" in 24.04) printf 'jazzy\n' ;; *) printf 'humble\n' ;; esac ;;
     *) return 1 ;;
   esac
 }
@@ -48,9 +48,9 @@ validate_ros_request() {
   local mode="$1"
   validate_supported_system || return 1
   case "$mode:$LTG_UBUNTU_VERSION" in
-    ros1:20.04|ros2:22.04) return 0 ;;
+    ros1:20.04|ros2:22.04|ros2:24.04) return 0 ;;
     ros1:*) log_error "ROS 1 Noetic is supported by Linux To Go on Ubuntu 20.04 only. Detected Ubuntu $LTG_UBUNTU_VERSION."; return 1 ;;
-    ros2:*) log_error "ROS 2 Humble is supported by Linux To Go on Ubuntu 22.04 only. Detected Ubuntu $LTG_UBUNTU_VERSION."; return 1 ;;
+    ros2:*) log_error "ROS 2 is supported on Ubuntu 22.04 (Humble) or 24.04 (Jazzy). Detected Ubuntu $LTG_UBUNTU_VERSION."; return 1 ;;
     *) log_error "Unknown ROS mode: $mode"; return 1 ;;
   esac
 }

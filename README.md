@@ -1,77 +1,70 @@
 # Linux To Go
 
-Ubuntu 机器人开发环境安装工具：Clash Verge Rev、NoMachine，以及可选的 ROS 安装。
+新电脑环境部署工具：图形界面检测 Ubuntu、amd64 / arm64 和已有 ROS，安装对应 ROS、Clash Verge 与 NoMachine。
 
-[中文详细说明](README_CN.md) · [English](README_EN.md) · [한국어](README_KR.md) · [ภาษาไทย](README_TH.md)
-
-## 已有 ROS2 Humble：只安装两个应用
-
-适用于 Ubuntu 22.04。Intel Core i5 / AMD x86-64 电脑使用 **amd64**，ARM 电脑使用 arm64。
-
-**amd64 需要先准备本地 NoMachine 安装包。** 原 NoMachine 9.8.3 官方链接已失效；请将旧电脑上可信的 `nomachine_*_amd64.deb` 复制到新电脑，例如 `~/Downloads/nomachine_9.7.3_1_amd64.deb`。不要使用 ARM64 包。
+## 克隆后运行
 
 ```bash
-# 没有 git 时先运行：sudo apt update && sudo apt install -y git
-git clone https://github.com/ssybh2/Linux_togo.git ~/Linux_togo
-cd ~/Linux_togo
-sudo ./install.sh
-
-# 将路径替换成实际存在的 amd64 安装包
-LINUX_TO_GO_NOMACHINE_DEB="$HOME/Downloads/nomachine_9.7.3_1_amd64.deb" linux-to-go --apps-only
-
-linux-to-go --check
-sudo /usr/NX/bin/nxserver --status
+# 若没有 git：sudo apt update && sudo apt install -y git
+git clone https://github.com/ssybh2/Linux_togo.git
+cd Linux_togo
+./setup.sh
 ```
 
-`--apps-only` 不调用 ROS 安装流程，不修改 ROS 软件源或 `.bashrc`，不额外安装编译工具。应用自身必需的运行依赖由 APT 处理。已安装应用直接跳过。
+以普通桌面用户运行。首次缺少窗口依赖时，程序会在终端请求 sudo 安装 `python3-tk`；随后打开部署窗口。检查界面中的检测结果、选择 ROS 和应用，再点击 **开始部署**。系统安装会请求管理员密码，并显示实时日志。
 
-如果 NoMachine 已安装，或使用 ARM64 设备，可直接运行：
+- 自动检测 ROS 1 / ROS 2，无需提前 source；已有 ROS 默认保留，已有应用跳过。
+- 未检测到 ROS 时，在窗口选择 ROS 1 或 ROS 2；不兼容选项禁用并说明适用系统。
+- 自动按当前系统软件包架构选择 amd64 / arm64。Intel 和 AMD 的 x86-64 CPU 都使用 amd64。
+- 应用直接使用[本仓库 Releases](https://github.com/ssybh2/Linux_togo/releases)，下载后检查 SHA-256、DEB 包名、版本和架构，再由 APT 安装依赖。
+- **预览安装计划** 不下载或安装软件。安装失败时保留日志，修复网络/依赖后可重试，已安装组件跳过。
+
+## 兼容性
+
+| Ubuntu | 可安装 ROS | Clash Verge 2.5.10 | NoMachine |
+| --- | --- | --- | --- |
+| 20.04 | ROS 1 Noetic（2025年5月已结束维护） | 标准源缺少 WebKit 4.1，界面禁用 | 自动匹配架构 |
+| 22.04 | ROS 2 Humble | 支持 | 自动匹配架构 |
+| 24.04 | ROS 2 Jazzy | 支持 | 自动匹配架构 |
+
+支持 amd64、arm64。不会将 Noetic 软件源混入 22.04 / 24.04，也不会在 20.04 安装 Humble。其他 Linux 发行版和 Ubuntu 版本会报告不支持并停止。
+
+Clash 为两架构 **2.5.10**；NoMachine 为 amd64 **9.7.3-1**、arm64 **9.8.3-1**，与仓库已上传资产一致。20.04 如需 Clash，应先使用有兼容构建的受支持系统；工具不会强行混用其他 Ubuntu 版本的软件源。
+
+## 无桌面 / 命令行
 
 ```bash
-linux-to-go --apps-only
+./setup.sh --check                         # 只检测
+./setup.sh --auto                          # 有ROS则保留，否则终端选择
+./setup.sh --ros2 --dry-run                 # 预览
+./setup.sh --ros2                           # 22.04 Humble / 24.04 Jazzy
+./setup.sh --ros1 --skip-clash              # 20.04 Noetic + NoMachine
+./setup.sh --apps-only                     # 只安装应用
+./setup.sh --apps-only --skip-nomachine     # 只安装 Clash
 ```
 
-安装完成后，以普通桌面用户打开 Clash Verge，导入自己的订阅并选择节点，再按需要开启代理。NoMachine 安装包通常会启动服务；另一台电脑上的 NoMachine 客户端可通过本机局域网 IP 连接，默认使用 TCP 4000 和 Ubuntu 登录账号。
+不必先执行 `install.sh`。如需全局命令，可执行 `sudo ./install.sh`，再使用 `linux-to-go --gui` / `linux-to-go --check`。
 
-## 下载与校验
+## 安装完成后
 
-- Clash Verge Rev 固定为 **2.5.2**：官方 GitHub Release，校验 SHA-256、包名、版本和架构。
-- NoMachine ARM64：本仓库 Release 中的 **9.8.3-1**，校验 SHA-256 和 DEB 元数据。
-- NoMachine AMD64：使用用户提供的本地 DEB，检查包名和架构；没有包时在安装任何组件前停止并提示。
+Clash Verge 需自行导入订阅并选择节点；程序不提供订阅或自动更改系统代理。NoMachine 安装包会配置远程服务，服务检查：`sudo /usr/NX/bin/nxserver --status`。ROS 在新终端生效。
 
-当前 NoMachine 官网提供的 [Personal Edition](https://download.nomachine.com/personal-edition/) 需要订阅激活或试用，因此脚本不会自动将旧版替换为该产品。详细步骤与校验值见[安装说明](README_CN.md)。
+图形界面日志：`~/.local/state/linux-to-go/`，或 `$XDG_STATE_HOME/linux-to-go/`。下载失败、校验失败、sudo拒绝、APT依赖冲突均报告失败，不会显示部署成功。APT 禁止删除现有软件包；依赖冲突需先修复系统。
 
-## 包含 ROS 的安装模式
+完整说明：[中文](README_CN.md) · [English](README_EN.md)。旧的[한국어](README_KR.md) / [ภาษาไทย](README_TH.md) 为历史说明，以当前中文/英文流程为准。
 
-| 系统 | 命令 | 目标 |
-|---|---|---|
-| Ubuntu 20.04 | `linux-to-go -ros1` | ROS 1 Noetic |
-| Ubuntu 22.04 | `linux-to-go -ros2` | ROS 2 Humble |
-
-两种模式也会安装应用，AMD64 同样需要提前提供 NoMachine DEB。已有 Humble 的电脑优先使用 `--apps-only`。本次修正重点为应用安装流程，未在全新系统验证上述 ROS 完整安装模式。
-
-## 更新
+## 更新与测试
 
 ```bash
-cd ~/Linux_togo
 git pull --ff-only
-sudo ./install.sh
-linux-to-go --check
-```
+./setup.sh
 
-更新脚本后，按需要重新执行 `--apps-only`。已安装应用不会自动升级。
-
-## 测试
-
-```bash
-for script in install.sh bin/linux-to-go lib/*.sh tests/*.sh; do
-  bash -n "$script" || break
-done
 bash tests/test_detection.sh
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-测试使用临时 DEB 和模拟 APT/网络命令，不安装系统软件。[审查记录](docs/install-audit.md)。
+自动测试拦截 APT、网络和 sudo，使用临时 DEB，不更改本机软件环境。四个实际 Release 包及 ROS官方软件源包的校验、图形界面预览已经检查；全新系统完整安装仍需在目标机器验证。详见 [验证记录](docs/bootstrap-validation.md)。
+
 ## add terminal VPN stream from clashverge
 export http_proxy="http://127.0.0.1:7897"
 export https_proxy="http://127.0.0.1:7897"

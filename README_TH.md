@@ -1,3 +1,5 @@
+> Historical guide. For the current GUI installer and Release packages, use [README](README.md) or [English](README_EN.md).
+
 # Linux To Go 🚀
 
 > **เครื่องมือปรับแต่งสภาพแวดล้อม Ubuntu สำหรับการพัฒนา Robotics แบบอัตโนมัติ**

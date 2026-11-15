@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-NOMACHINE_VERSION="9.8.3"
+nomachine_version() {
+  case "$1" in amd64) printf '9.7.3\n' ;; arm64) printf '9.8.3\n' ;; *) return 1 ;; esac
+}
 NOMACHINE_BUILD="1"
 NOMACHINE_RELEASE_BASE_URL="https://github.com/ssybh2/Linux_togo/releases/download/nomachine"
 
 nomachine_asset_name() {
   case "$1" in
-    amd64) printf 'nomachine_%s_%s_amd64.deb\n' "$NOMACHINE_VERSION" "$NOMACHINE_BUILD" ;;
-    arm64) printf 'nomachine_%s_%s_arm64.deb\n' "$NOMACHINE_VERSION" "$NOMACHINE_BUILD" ;;
+    amd64) printf 'nomachine_%s_%s_amd64.deb\n' "$(nomachine_version amd64)" "$NOMACHINE_BUILD" ;;
+    arm64) printf 'nomachine_%s_%s_arm64.deb\n' "$(nomachine_version arm64)" "$NOMACHINE_BUILD" ;;
     *) return 1 ;;
   esac
 }
@@ -16,7 +18,7 @@ nomachine_asset_url() {
   local arch="$1" name
   name="$(nomachine_asset_name "$arch")" || return 1
   case "$arch" in
-    amd64) log_error 'The legacy NoMachine amd64 endpoint no longer serves a DEB. Set LINUX_TO_GO_NOMACHINE_DEB to a trusted local nomachine_*_amd64.deb.'; return 1 ;;
+    amd64) printf 'https://github.com/ssybh2/Linux_togo/releases/download/amd64/%s\n' "$name" ;;
     arm64) printf '%s/%s\n' "$NOMACHINE_RELEASE_BASE_URL" "$name" ;;
     *) return 1 ;;
   esac
@@ -32,8 +34,7 @@ nomachine_asset_sha256() {
   case "$1" in
     # Verified from the ARM64 package stored in the Linux_togo GitHub Release.
     arm64) printf 'be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad\n' ;;
-    # No independently verified SHA-256 is encoded for amd64.
-    amd64) printf '\n' ;;
+    amd64) printf '81e0f8b48c7a4d3c16dac0401b9d188353e4a237498284d267a05c5176fd95fc\n' ;;
     *) return 1 ;;
   esac
 }
@@ -79,7 +80,7 @@ _download_nomachine() {
   download_file "$primary" "$output" || {
     log_error 'NoMachine download failed. Supply a trusted package using LINUX_TO_GO_NOMACHINE_DEB.'; return 1;
   }
-  validate_deb_package "$output" nomachine "$arch" "${NOMACHINE_VERSION}-${NOMACHINE_BUILD}"
+  validate_deb_package "$output" nomachine "$arch" "$(nomachine_version "$arch")-${NOMACHINE_BUILD}"
 }
 
 preflight_nomachine() {
@@ -91,9 +92,8 @@ preflight_nomachine() {
   fi
   if package="$(find_nomachine_local_package "$LTG_ARCH")"; then
     validate_deb_architecture "$package" "$LTG_ARCH" || return 1
-  elif [[ "$LTG_ARCH" == "amd64" ]]; then
-    nomachine_asset_url "$LTG_ARCH" >/dev/null
-    return 1
+  else
+    nomachine_asset_url "$LTG_ARCH" >/dev/null || return 1
   fi
   return 0
 }
@@ -123,16 +123,10 @@ install_nomachine() {
     return 0
   fi
 
-  # Detect this before downloading anything or reporting installation success.
-  if [[ "$arch" == "amd64" ]]; then
-    nomachine_asset_url "$arch" >/dev/null
-    return 1
-  fi
-
   local asset source_label
   asset="$(nomachine_asset_name "$arch")" || { log_error "No NoMachine package for $arch"; return 1; }
   source_label="Linux_togo GitHub Release"
-  log_install "NoMachine ${NOMACHINE_VERSION} ($arch) from ${source_label}"
+  log_install "NoMachine $(nomachine_version "$arch") ($arch) from ${source_label}"
   if (
     set -Eeuo pipefail
     local_tmp="$(mktemp -d)" || exit 1
@@ -146,5 +140,5 @@ install_nomachine() {
   else
     return 1
   fi
-  log_ok "NoMachine ${NOMACHINE_VERSION} installed"
+  log_ok "NoMachine $(nomachine_version "$arch") installed"
 }

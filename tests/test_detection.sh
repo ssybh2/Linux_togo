@@ -56,17 +56,17 @@ assert_failure "ROS1 absent when no setup/package/command" env LTG_ROS_ROOT="$tm
 assert_failure "ROS2 absent when no setup/package/command" env LTG_ROS_ROOT="$tmp_ros" LTG_TEST_DISABLE_COMMAND_DETECTION=1 bash -c 'source "$1/lib/common.sh"; source "$1/lib/ros.sh"; detect_ros2' _ "$ROOT_DIR"
 
 source "$ROOT_DIR/lib/clash-verge.sh"
-assert_eq "Clash.Verge_2.5.2_amd64.deb" "$(clash_asset_name amd64)" "Clash amd64 asset"
-assert_eq "Clash.Verge_2.5.2_arm64.deb" "$(clash_asset_name arm64)" "Clash arm64 asset"
-assert_eq "035c83ed14b16df1dd397e5d710b34bedd5d27beb6678549ceaeeadf9bc167ed" "$(clash_asset_sha256 amd64)" "Clash amd64 checksum"
-assert_eq "598a5a852d7bf9dc40a976780ef2afc9a4e5bfe7b99533e5f956f9e2f9def72f" "$(clash_asset_sha256 arm64)" "Clash arm64 checksum"
-assert_eq "https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.5.2/Clash.Verge_2.5.2_amd64.deb" "$(clash_asset_url amd64)" "Clash official amd64 URL"
+assert_eq "Clash.Verge_2.5.10_amd64.deb" "$(clash_asset_name amd64)" "Clash amd64 asset"
+assert_eq "Clash.Verge_2.5.10_arm64.deb" "$(clash_asset_name arm64)" "Clash arm64 asset"
+assert_eq "add8564811ba4d2305da443288d23a26c5ed19674b676a0bb58b99ec4f7d13cf" "$(clash_asset_sha256 amd64)" "Clash amd64 checksum"
+assert_eq "729c3bdc84207984fd894cc0ff14e6451fc9335060b5c7efbe378a9f4dbdf8fd" "$(clash_asset_sha256 arm64)" "Clash arm64 checksum"
+assert_eq "https://github.com/ssybh2/Linux_togo/releases/download/x64clash/Clash.Verge_2.5.10_amd64.deb" "$(clash_asset_url amd64)" "Clash repository amd64 URL"
 assert_failure "Clash unsupported arch rejected" clash_asset_name armhf
 
 source "$ROOT_DIR/lib/nomachine.sh"
-assert_eq "nomachine_9.8.3_1_amd64.deb" "$(nomachine_asset_name amd64)" "NoMachine amd64 asset"
+assert_eq "nomachine_9.7.3_1_amd64.deb" "$(nomachine_asset_name amd64)" "NoMachine amd64 asset"
 assert_eq "nomachine_9.8.3_1_arm64.deb" "$(nomachine_asset_name arm64)" "NoMachine arm64 asset"
-assert_failure "NoMachine invalid amd64 vendor endpoint is not used" nomachine_asset_url amd64
+assert_eq "https://github.com/ssybh2/Linux_togo/releases/download/amd64/nomachine_9.7.3_1_amd64.deb" "$(nomachine_asset_url amd64)" "NoMachine AMD64 release URL"
 assert_eq "https://github.com/ssybh2/Linux_togo/releases/download/nomachine/nomachine_9.8.3_1_arm64.deb" "$(nomachine_asset_url arm64)" "NoMachine Linux_togo ARM64 release URL"
 assert_failure "NoMachine retired official fallback is not used" nomachine_fallback_url arm64
 assert_eq "be874820b9539e836d44fdfb2311a588253bd192e0e43393d819251e42a057ad" "$(nomachine_asset_sha256 arm64)" "NoMachine uploaded arm64 checksum"
@@ -89,7 +89,7 @@ assert_success "CLI 22.04 ros2 happy path" env \
 assert_failure "CLI rejects ros1 on Ubuntu 22.04" env \
   LTG_TEST_OS_ID=ubuntu LTG_TEST_UBUNTU_VERSION=22.04 LTG_TEST_ARCH=amd64 \
   LTG_TEST_SKIP_COMMON=1 bash "$ROOT_DIR/bin/linux-to-go" -ros1
-assert_failure "CLI requires one mode" bash "$ROOT_DIR/bin/linux-to-go"
+assert_failure "CLI rejects multiple modes" bash "$ROOT_DIR/bin/linux-to-go" --ros1 --ros2
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"
 (( failures == 0 ))

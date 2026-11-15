@@ -18,7 +18,7 @@ run_as_root() {
     "$@"
   else
     command_exists sudo || { log_error "sudo is required for installation."; return 1; }
-    sudo "$@"
+    if [[ "${LTG_NONINTERACTIVE:-0}" == 1 ]]; then sudo -n "$@"; else sudo "$@"; fi
   fi
 }
 
@@ -28,19 +28,19 @@ package_installed() {
 
 apt_update_once() {
   if [[ "$LTG_APT_UPDATED" != "1" ]]; then
-    run_as_root apt-get update || return 1
+    run_as_root apt-get -o DPkg::Lock::Timeout=120 update || return 1
     LTG_APT_UPDATED=1
   fi
 }
 
 apt_install() {
   apt_update_once || return 1
-  run_as_root apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 "$@"
+  run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install --no-remove -y --no-install-recommends -o DPkg::Lock::Timeout=120 "$@"
 }
 
 download_file() {
   local url="$1" output="$2"
-  curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 "$url" -o "$output"
+  curl --proto =https --proto-redir =https -fL --retry 3 --retry-delay 2 --connect-timeout 20 "$url" -o "$output"
 }
 
 validate_deb_package() {

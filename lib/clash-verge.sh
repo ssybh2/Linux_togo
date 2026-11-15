@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-CLASH_VERGE_VERSION="2.5.2"
-CLASH_VERGE_BASE_URL="https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v${CLASH_VERGE_VERSION}"
+CLASH_VERGE_VERSION="2.5.10"
+CLASH_VERGE_BASE_URL="https://github.com/ssybh2/Linux_togo/releases/download"
 
 clash_asset_name() {
   case "$1" in
@@ -13,16 +13,17 @@ clash_asset_name() {
 
 clash_asset_sha256() {
   case "$1" in
-    amd64) printf '035c83ed14b16df1dd397e5d710b34bedd5d27beb6678549ceaeeadf9bc167ed\n' ;;
-    arm64) printf '598a5a852d7bf9dc40a976780ef2afc9a4e5bfe7b99533e5f956f9e2f9def72f\n' ;;
+    amd64) printf 'add8564811ba4d2305da443288d23a26c5ed19674b676a0bb58b99ec4f7d13cf\n' ;;
+    arm64) printf '729c3bdc84207984fd894cc0ff14e6451fc9335060b5c7efbe378a9f4dbdf8fd\n' ;;
     *) return 1 ;;
   esac
 }
 
 clash_asset_url() {
-  local name
+  local name tag
+  case "$1" in amd64) tag=x64clash ;; arm64) tag=arm64clash ;; *) return 1 ;; esac
   name="$(clash_asset_name "$1")" || return 1
-  printf '%s/%s\n' "$CLASH_VERGE_BASE_URL" "$name"
+  printf '%s/%s/%s\n' "$CLASH_VERGE_BASE_URL" "$tag" "$name"
 }
 
 clash_is_installed() {
@@ -41,6 +42,10 @@ install_clash_verge() {
     return 0
   fi
 
+  if [[ "${LTG_UBUNTU_VERSION:-}" == "20.04" ]]; then
+    log_error "Release Clash Verge 2.5.10 requires libwebkit2gtk-4.1-0 (Ubuntu 22.04+). Use --skip-clash on 20.04."
+    return 1
+  fi
   local arch="${LTG_ARCH:?system architecture not detected}"
   local asset url checksum
   asset="$(clash_asset_name "$arch")" || { log_error "No Clash Verge Rev package for $arch"; return 1; }

@@ -1,3 +1,5 @@
+> Historical guide. For the current GUI installer and Release packages, use [README](README.md) or [English](README_EN.md).
+
 # Linux To Go 🚀
 
 > 로봇 개발을 위한 Ubuntu 자동 환경 구축 도구
