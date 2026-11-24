@@ -1,0 +1,109 @@
+ROS 2 Humble 小乌龟（Turtlesim）入门实验
+========================================
+环境：Ubuntu 22.04 + 已安装 ROS 2 Humble + 图形桌面 + Bash
+目标：体验 Node、Topic、Publisher、Subscriber 和键盘控制。
+以下命令按步骤执行，不要将所有终端的命令一次性粘贴到同一个终端。
+
+1. 安装与检查（仅首次需要安装）
+--------------------------------
+source /opt/ros/humble/setup.bash
+echo $ROS_DISTRO
+sudo apt update
+sudo apt install -y ros-humble-turtlesim ros-humble-rqt-graph
+ros2 pkg executables turtlesim
+
+预期 ROS_DISTRO 为 humble，软件包中包含 turtlesim_node 和 turtle_teleop_key。
+不需要新建工作空间或使用 colcon build。
+
+2. 终端 1：启动小乌龟仿真
+--------------------------------
+source /opt/ros/humble/setup.bash
+ros2 run turtlesim turtlesim_node
+
+出现蓝色背景的小乌龟窗口。保持终端运行。
+
+3. 终端 2：启动键盘控制
+--------------------------------
+按 Ctrl+Alt+T 打开新终端。
+source /opt/ros/humble/setup.bash
+ros2 run turtlesim turtle_teleop_key
+
+保持焦点在终端 2，使用方向键：
+上：前进；下：后退；左：逆时针转向；右：顺时针转向。
+保持终端 1、2 运行。
+
+4. 终端 3：查看 ROS 2 节点（Node）
+--------------------------------
+source /opt/ros/humble/setup.bash
+ros2 node list
+ros2 node info /turtlesim
+ros2 node info /teleop_turtle
+
+预期主要节点：
+/turtlesim       仿真节点
+/teleop_turtle   键盘控制节点
+
+5. 终端 3：查看话题（Topic）
+--------------------------------
+ros2 topic list
+ros2 topic list -t
+ros2 topic info /turtle1/cmd_vel --verbose
+ros2 topic info /turtle1/pose
+ros2 interface show geometry_msgs/msg/Twist
+ros2 interface show turtlesim/msg/Pose
+
+/turtle1/cmd_vel：速度指令，类型 geometry_msgs/msg/Twist。
+/turtle1/pose：小乌龟位姿及速度反馈，类型 turtlesim/msg/Pose。
+linear.x 表示前向速度，angular.z 表示绕 Z 轴的角速度。
+
+6. 终端 3：订阅速度指令
+--------------------------------
+ros2 topic echo /turtle1/cmd_vel
+
+切换到终端 2 并按方向键，观察终端 3 的消息。
+按 Ctrl+C 结束 echo，不会关闭小乌龟。
+
+7. 终端 3：订阅位姿
+--------------------------------
+ros2 topic echo /turtle1/pose
+
+观察 x、y、theta、linear_velocity、angular_velocity。
+按 Ctrl+C 退出。
+
+8. 终端 3：直接发布速度指令（不使用键盘）
+--------------------------------
+先停止终端 2 的键盘控制（Ctrl+C），避免两个发布者同时控制。
+ros2 topic pub --rate 10 /turtle1/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 1.0}, angular: {z: 0.8}}"
+
+小乌龟将沿圆弧运动。按 Ctrl+C 停止持续发布，再发送零速度：
+ros2 topic pub --once /turtle1/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}"
+
+9. 重置仿真（可选）
+--------------------------------
+ros2 service call /reset std_srvs/srv/Empty "{}"
+
+10. 终端 4：可视化节点通信
+--------------------------------
+重新启动终端 2 的键盘控制，然后打开终端 4：
+source /opt/ros/humble/setup.bash
+ros2 run rqt_graph rqt_graph
+
+在图形界面刷新，观察以下通信关系：
+/teleop_turtle --> /turtle1/cmd_vel --> /turtlesim
+
+键盘节点是 Publisher，仿真节点是 Subscriber。
+仿真节点同时发布 /turtle1/pose，可供其他节点订阅。
+Topic 是节点之间传递消息的命名通信通道。
+
+11. 常见问题
+--------------------------------
+- ros2: command not found：每个新终端执行 source /opt/ros/humble/setup.bash。
+- 找不到 turtlesim：确认 apt 安装成功，并执行 ros2 pkg executables turtlesim。
+- 图形窗口打不开：确认使用有图形桌面的 Ubuntu 会话，检查 echo $DISPLAY；纯 SSH 终端通常需要额外的图形转发配置。
+- 看不到节点或话题：确认仿真仍在运行，所有终端的 ROS_DOMAIN_ID 相同（echo ${ROS_DOMAIN_ID:-0}）。
+- 多台教学电脑互相发现节点：可在每个实验终端 source 后、运行节点前执行 export ROS_LOCALHOST_ONLY=1；如已启动节点，先退出并重启所有实验节点。该设置仅用于单机实验。
+- 键盘没反应：点击键盘控制所在终端，再按方向键。
+- 结束实验：在各运行终端按 Ctrl+C。
+
+官方参考：
+https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Introducing-Turtlesim/Introducing-Turtlesim.html
